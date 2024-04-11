@@ -1,0 +1,399 @@
+---
+title: "Figure 2"
+linestretch: 1.5
+fontsize: 10pt
+output: 
+  bookdown::pdf_document2:
+    number_sections: true
+    toc: true
+    toc_depth: 2
+    link-citations: true
+---
+
+```{r include = FALSE, echo = FALSE}
+library(knitr)
+opts_chunk$set(
+  fig.path='figure/', 
+  self.contained=FALSE,
+  dev=c('pdf', 'tiff'),
+  dpi = 300,
+  cache=FALSE,
+  echo = TRUE,
+  warning = FALSE,
+  message = FALSE,
+  fig.align="center"
+)
+```
+
+# Packages, data and functions
+
+## Packages
+
+```{r echo = TRUE}
+library(tidyverse)  
+library(patchwork)  
+library(here) 
+library(lme4) 
+library(lmerTest)
+```
+
+## Data
+```{r data}
+complete.forecasts <- readRDS(here("Data/complete.forecasts.RDS"))
+
+complete.forecasts.taxa <- complete.forecasts %>%
+  dplyr::filter(
+    forecast.method == "Simplex EDM",
+    Target != "Total_biomass",
+    Target != "Mean_oxygen"
+  )
+```
+
+
+
+## Functions
+
+```{r functionsForConfidenceInterval}
+conf_interval <- function(model, nd, response, renameResponse, cmult=1.96){
+  nd[,response] <- predict(model, nd, re.form=NA)
+  mm <- model.matrix(terms(model),nd)
+  pvar1 <- diag(mm %*% tcrossprod(vcov(model),mm))
+  nd <- nd %>%
+    dplyr::mutate(lower=!!as.name(response)-cmult*sqrt(pvar1),
+                  upper=!!as.name(response)+cmult*sqrt(pvar1),
+                  Response=renameResponse) %>%
+    dplyr::rename(fit=!!as.name(response))
+  return(nd)
+}
+```
+
+
+# Figure 2
+
+## Models
+
+```{r modelFigure2, message=FALSE, warning=FALSE}
+## acf vs exp
+m.acf.exp <-
+  lmer(
+    acf_lag5 ~ median_richness_center * light_treatment + 
+      (1 |Target) + (1 | bottle) + (1 | incubator),
+    complete.forecasts.taxa
+  )
+
+## cv vs exp
+m.cv.exp <-
+  lmer(
+    cv.res.log10 ~ median_richness_center * light_treatment + 
+      (1 | Target) + (1 | bottle) + (1 | incubator),
+    complete.forecasts.taxa
+  )
+
+### pe vs rmse
+m.pe.exp <-
+  lmer(
+    pe5 ~ median_richness_center * light_treatment + 
+      (1 | Target) + (1 | bottle) + (1 | incubator),
+    complete.forecasts.taxa
+  )
+
+## acf vs RMSE
+m.acf.rmse <-
+  lmer(
+    RMSE ~ acf_lag5 * light_treatment + 
+      (1 | Target) + (1 | bottle) + (1 | incubator),
+    complete.forecasts.taxa
+  )
+
+## CV vs RMSE
+m.cv.rmse <-
+  lmer(
+    RMSE ~ cv.res.log10 * light_treatment + 
+      (1 |Target) + (1 | bottle) + (1 | incubator),
+    complete.forecasts.taxa
+  )
+
+### pe vs rmse
+m.pe.rmse <-
+  lmer(
+    RMSE ~ pe5 * light_treatment + 
+      (1 | Target) + (1 | bottle) + (1 | incubator),
+    complete.forecasts.taxa
+  )
+```
+
+
+## Figure
+
+```{r Figure2Prep, fig.height=7, fig.width=12, message=FALSE, warning=FALSE}
+newdat.m.exp <-
+  expand.grid(
+    median_richness_center = seq(
+      min(complete.forecasts.taxa$median_richness_center),
+      max(complete.forecasts.taxa$median_richness_center),
+      length.out = 100
+    ),
+    light_treatment = unique(complete.forecasts.taxa$light_treatment)
+  )
+
+newdat.m.acf <-
+  expand.grid(
+    acf_lag5 = seq(
+      min(complete.forecasts.taxa$acf_lag5),
+      max(complete.forecasts.taxa$acf_lag5),
+      length.out = 100
+    ),
+    light_treatment = unique(complete.forecasts.taxa$light_treatment)
+  )
+
+newdat.m.cv <-
+  expand.grid(
+    cv.res.log10 = seq(min(log10(
+      complete.forecasts.taxa$cv.res
+    )),
+    max(log10(
+      complete.forecasts.taxa$cv.res
+    )),
+    length.out = 100),
+    light_treatment = unique(complete.forecasts.taxa$light_treatment)
+  )
+
+newdat.m.pe.rmse <-
+  expand.grid(
+    pe5 = seq(
+      min(complete.forecasts.taxa$pe5),
+      max(complete.forecasts.taxa$pe5),
+      length.out = 100
+    ),
+    light_treatment = unique(complete.forecasts.taxa$light_treatment)
+  )
+
+
+## acf vs exp
+newdat.acf.exp <-
+  conf_interval(m.acf.exp, newdat.m.exp, "acf_lag5", "Autocorrelation at lag 5")
+
+## cv vs exp
+newdat.cv.exp <-
+  conf_interval(m.cv.exp, newdat.m.exp, "cv.res.log10", "cv.res.log10")
+
+## acf vs RMSE
+newdat.m.acf.rmse <-
+  conf_interval(m.acf.rmse, newdat.m.acf, "RMSE", "Forecast error (RMSE)")
+
+## CV vs RMSE
+newdat.m.cv.rmse <-
+  conf_interval(m.cv.rmse, newdat.m.cv, "RMSE", "Forecast error (RMSE)")
+
+### pe vs exp design
+newdat.m.exp <-
+  conf_interval(m.pe.exp, newdat.m.exp, "pe5", "Permutation entropy")
+
+### pe vs rmse
+newdat.m.pe.rmse <-
+  conf_interval(m.pe.rmse, newdat.m.pe.rmse, "RMSE", "Forecast error (RMSE)")
+
+
+fig2exp.acf <- complete.forecasts.taxa %>%
+  ggplot(aes(median_richness_center, acf_lag5, col = light_treatment)) +
+  geom_ribbon(
+    data = newdat.acf.exp,
+    aes(
+      ymin = lower,
+      ymax = upper,
+      y = fit,
+      group = light_treatment
+    ),
+    col = NA,
+    fill = "grey",
+    alpha = 0.3
+  ) +
+  geom_line(data = newdat.acf.exp,
+            size = 1.3,
+            aes(y = fit, group = light_treatment)) +
+  geom_point(size = 2.5, alpha = 0.6) +
+  labs(x = "Centered median realized species richness", 
+       y = "Autocorrelation at lag 5",
+       col = "Light conditions") +
+  theme_bw() +
+  theme(legend.position = "none")
+
+fig2exp.cv <- complete.forecasts.taxa %>%
+  ggplot(aes(median_richness_center, cv.res.log10, col = light_treatment)) +
+  geom_ribbon(
+    data = newdat.cv.exp,
+    aes(
+      ymin = lower,
+      ymax = upper,
+      y = fit,
+      group = light_treatment
+    ),
+    col = NA,
+    fill = "grey",
+    alpha = 0.3
+  ) +
+  geom_line(data = newdat.cv.exp,
+            size = 1.3,
+            aes(y = fit, group = light_treatment)) +
+  geom_point(size = 2.5, alpha = 0.6) +
+  labs(x = "Centered median realized species richness", 
+       y = "log10(Coefficient of variation CV)",
+       col = "Light conditions") +
+  theme_bw() +
+  theme(legend.position = "bottom")
+
+fig2acf.rmse <- complete.forecasts.taxa %>%
+  ggplot(aes(acf_lag5, RMSE, col = light_treatment)) +
+  geom_ribbon(
+    data = newdat.m.acf.rmse,
+    aes(
+      ymin = lower,
+      ymax = upper,
+      y = fit,
+      group = light_treatment
+    ),
+    col = NA,
+    fill = "grey",
+    alpha = 0.3
+  ) +
+  geom_line(data = newdat.m.acf.rmse,
+            size = 1.3,
+            aes(y = fit, group = light_treatment)) +
+  geom_point(size = 2.5, alpha = 0.6) +
+  labs(x = "Autocorrelation at lag 5", y = "Forecast error (RMSE)",
+       col = "Light conditions") +
+  theme_bw() +
+  theme(legend.position = "none")
+
+fig2cv.rmse <- complete.forecasts.taxa %>%
+  ggplot(aes(cv.res.log10, RMSE, col = light_treatment)) +
+  geom_ribbon(
+    data = newdat.m.cv.rmse,
+    aes(
+      ymin = lower,
+      ymax = upper,
+      y = fit,
+      group = light_treatment
+    ),
+    col = NA,
+    fill = "grey",
+    alpha = 0.3
+  ) +
+  geom_line(data = newdat.m.cv.rmse,
+            size = 1.3,
+            aes(y = fit, group = light_treatment)) +
+  geom_point(size = 2.5, alpha = 0.6) +
+  labs(x = "log10(Coefficient of variation CV)",
+       y = "Forecast error (RMSE)",
+       col = "Light conditions",
+       tag = "e") +
+  theme_bw() +
+  theme(legend.position = "none")
+
+fig2exp.pe <- complete.forecasts.taxa %>%
+  dplyr::filter(Target != "Total_biomass",
+                Target != "Mean_oxygen",
+                forecast.method == "Simplex EDM") %>%
+  ggplot(aes(median_richness_center, pe5, col = light_treatment)) +
+  geom_ribbon(
+    data = newdat.m.exp,
+    aes(
+      ymin = lower,
+      ymax = upper,
+      y = fit,
+      group = light_treatment
+    ),
+    col = NA,
+    fill = "grey",
+    alpha = 0.3
+  ) +
+  geom_line(data = newdat.m.exp,
+            size = 1.3,
+            aes(y = fit, group = light_treatment)) +
+  geom_point(size = 2.5, alpha = 0.6) +
+  labs(x = "Centered median realized species richness", 
+       y = "Permutation entropy",
+       col = "Light conditions") +
+  theme_bw() +
+  theme(legend.position = "none")
+
+fig2pe.rmse <- complete.forecasts.taxa %>%
+  dplyr::filter(Target != "Total_biomass",
+                Target != "Mean_oxygen",
+                forecast.method == "Simplex EDM") %>%
+  ggplot(aes(pe5, RMSE, col = light_treatment)) +
+  geom_ribbon(
+    data = newdat.m.pe.rmse,
+    aes(
+      ymin = lower,
+      ymax = upper,
+      y = fit,
+      group = light_treatment
+    ),
+    col = NA,
+    fill = "grey",
+    alpha = 0.3
+  ) +
+  geom_line(data = newdat.m.pe.rmse,
+            size = 1.3,
+            aes(y = fit, group = light_treatment)) +
+  geom_point(size = 2.5, alpha = 0.6) +
+  labs(y = "Forecast error (RMSE)", x = "Permutation entropy",
+       col = "Light conditions") +
+  theme_bw() +
+  theme(legend.position = "none")
+```
+
+
+```{r Figure2, fig.height=7, fig.width=12, message=FALSE, warning=FALSE}
+fig2acf.rmse + fig2cv.rmse + fig2pe.rmse +
+  fig2exp.acf + fig2exp.cv + fig2exp.pe +
+  plot_layout(ncol = 3) +
+  plot_annotation(tag_levels = "a") &
+  scale_color_manual(values = c("#C4961A", "#293352"),
+                     aesthetics = c("color", "fill")) 
+```
+
+
+**Figure 2**: Relationship of time series metrics with forecast error (a-c), and with experimental treatments (d-f). Time series metrics are (a, d) autocorrelation at lag 5, (b, e) coefficient of variation as a measure of temporal variability, and (c, f) permutation entropy as a measure of time series complexity. Lines display the fit of the corresponding linear mixed model, shaded areas denote the 95% confidence intervals. Taxon, bottle, and incubator were included as random effects in the model. Forecast error is based on forecasts computed with Simplex EDM.
+
+# Versions of R and of the R-packages used
+
+
+```{r rdetails, echo = FALSE}
+# Base packages:
+s <- sessionInfo()
+s1 <- s$basePkgs[1]
+
+for (i in 2:length(s$basePkgs)){
+  s1 <- paste(s1, ", ", s$basePkgs[i], sep = "")
+}
+
+# Other Packages:
+pack.info <- installed.packages()
+output.packages <- data.frame(pack.info[names(s$otherPkgs),
+                                        c("Package","Version")])
+
+s2 <- paste(names(s$otherPkgs)[1],
+            output.packages[names(s$otherPkgs)[1], "Version"])
+
+k <- length(names(s$otherPkgs))
+
+if(k>1) {
+  for (i in 2:k){
+    s2 <- paste(s2, ", ",
+                paste(names(s$otherPkgs)[i],
+                      output.packages[names(s$otherPkgs)[i], "Version"]),
+                sep = "")
+  }
+}  
+```
+
+
+\textbf{\textsf{R} version}: \textsf{`r s$R.version$version.string`}.
+
+\textbf{Base packages}: \textsf{`r s1`}.
+
+\textbf{Other packages}: \textsf{`r s2`}.
+
+\textbf{This document was generated on `r format(Sys.time(), "%B %d, %Y at %H:%M")`}.
