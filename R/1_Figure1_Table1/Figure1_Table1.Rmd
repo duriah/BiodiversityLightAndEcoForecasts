@@ -313,7 +313,7 @@ main.tab %>%
       "Response",
       "Covariate",
       "Estimate",
-      "CI",
+      "95\\% CI",
       "SS",
       "DF",
       "\\textit{F}-value",
