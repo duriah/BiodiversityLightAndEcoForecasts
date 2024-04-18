@@ -1,0 +1,578 @@
+---
+title: "Time Series Processing"
+author: "Romana Limberger, Uriah Daugaard et al."
+output:
+  html_document:
+    number_sections: true
+    code_folding: show
+    toc: true
+    toc_float: true
+    toc_depth: 3
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+# Dependencies, functions and data
+
+## Dependencies
+
+```{r packages, message=FALSE}
+library(tidyverse)
+library(randomForest)
+library(data.table)
+library(pracma)
+library(parallel)
+library(doParallel)
+library(here)
+library(segmented)
+
+set.seed(1)
+options(dplyr.summarise.inform = FALSE)
+```
+
+## Functions
+
+```{r load_own_fcts}
+source(file = here("R/1_Functions/OtherFunctions.R")) ## other useful functions
+```
+
+
+## Data {#data}
+
+```{r data, warning=FALSE, message=FALSE}
+# Species densities
+densities <- read_csv("../../Data/2_TimeSeriesData/Untransformed/AbundanceTimeSeries.csv")
+# Oxygen 
+o2 <- read_csv("../../Data/2_TimeSeriesData/Untransformed/OxygenTimeSeries.csv")
+# Water chemistry
+water_chem <- read_csv("../../Data/2_TimeSeriesData/Untransformed/CarbonNitrogenTimeSeries.csv")
+
+days <- unique(densities$day)
+timestamps <- unique(densities$timestamp)
+days_timestamps <- data.frame(day=days, timestamp=timestamps)
+```
+
+
+# Preliminary data processing
+
+## Taking the mean of repeated measurements
+
+```{r taking_the_mean, message=FALSE, warning=FALSE}
+densities$method <- ifelse(grepl("bemovi", densities$measurement, fixed = TRUE),"Video",
+                           ifelse(densities$measurement=="manualcount", "Manual count", 
+                                  ifelse(densities$measurement=="flowcam","FlowCam","Flowcytometer")))
+
+densities <- densities %>%
+  group_by(timestamp, day, bottle, species, light_treatment, richness, composition, incubator, method) %>%
+  summarize(density=mean(density, na.rm = T),
+            biomass=mean(biomass, na.rm = T)) %>%
+  mutate(density = ifelse(is.nan(density),as.numeric(NA),density),
+         biomass = ifelse(is.nan(biomass),as.numeric(NA),biomass))
+
+o2_bothMeas <- o2
+
+o2 <- o2 %>%
+  group_by(timestamp, day, bottle, richness, composition, incubator) %>%
+  summarize(percent_o2=ifelse(length(percent_o2)==1,NA,mean(percent_o2, na.rm = T))) %>%
+  mutate(percent_o2 = ifelse(is.nan(percent_o2),as.numeric(NA),percent_o2))
+```
+
+
+## Marking each time sereis as either "forecast target" or "non-forecast target"
+
+```{r, message=FALSE, warning=FALSE}
+colpi <- data.frame(species = "Colpidium striatum",
+                    bottle = c(17,20,27))
+eupl <- data.frame(species = "Euplotes daidaleos",
+                   bottle = c(18))
+dex <- data.frame(species = "Dexiostoma campylum",
+                  bottle = c(23))
+lox <- data.frame(species = "Loxocephalus sp.",
+                  bottle = c(25))
+cosm <- data.frame(species = "Cosmarium botrytis",
+                   bottle = c(1,3,5,6,11,18,19,22,23,24,27,29))
+sty <- data.frame(species = "Stylonychia sp.",
+                  bottle=c(27))
+stau2 <- data.frame(species = "Staurastrum polytrichum",
+                    bottle = c(8,10,21,22,27,30))
+stau1 <- data.frame(species = "Staurastrum gracile",
+                    bottle = c(6,12,19,20,28,29))
+desm <- data.frame(species = "Desmodesmus armatus",
+                   bottle = c(2))
+desm_clump <- data.frame(species = "Desmodesmus clumps",
+                         bottle = c(2))
+
+speciesKeptButNotForecasts <- rbind(colpi,eupl,dex,lox,cosm,sty,stau2,stau1,desm,desm_clump)
+
+speciesKeptButNotForecasts$bottle <- ifelse(speciesKeptButNotForecasts$bottle<10,
+                                            paste0("b_0",speciesKeptButNotForecasts$bottle),
+                                            paste0("b_",speciesKeptButNotForecasts$bottle))
+
+densities <- full_join(densities, speciesKeptButNotForecasts)
+
+speciesKeptButNotForecasts$int <- interaction(speciesKeptButNotForecasts$bottle, speciesKeptButNotForecasts$species)
+
+targets <- c("Bacteria","Chlamydomonas clumps","Chlamydomonas reinhardtii", "Coleps sp.","Cosmarium botrytis",
+             "Desmodesmus armatus","Desmodesmus clumps","Dividing Chlamydomonas","Paramecium caudatum","Paramecium bursaria","Small cells",
+             "Staurastrum gracile","Monoraphidium obtusum","Staurastrum polytrichum","Stylonychia sp.","Colpidium striatum",
+             "Dexiostoma campylum","Euplotes daidaleos","Loxocephalus sp.")
+other <- c("Debris", "Didinium nasutum", "Digested algae", "Small unidentified","Colpidium vacuoles")
+
+densities <- densities %>%
+  dplyr::mutate(bottle.species = interaction(bottle, species)) %>%
+  dplyr::mutate(ForecastTarget = ifelse(!(bottle.species %in% speciesKeptButNotForecasts$int) & species %in% targets,
+                                        T,F)) %>%
+  dplyr::select(-bottle.species)
+```
+
+
+## Calculating realized richness and community biomass
+```{r}
+vars <- c("Coleps sp.","Paramecium bursaria","Paramecium caudatum", 
+          "Stylonychia sp.","Colpidium striatum","Euplotes daidaleos",
+          "Dexiostoma campylum","Loxocephalus sp.","Chlamydomonas reinhardtii",
+          "Cosmarium botrytis",
+          "Desmodesmus armatus", "Staurastrum gracile","Monoraphidium obtusum",
+          "Staurastrum polytrichum","Bacteria")  
+
+realized.richness <- densities %>%
+  dplyr::filter(species %in% vars, ForecastTarget==T) %>%
+  group_by(bottle,richness,composition,light_treatment) %>%
+  dplyr::summarize(realized_richness = length(unique(species)))
+
+biomass <- densities %>%
+  group_by(timestamp, day, bottle, light_treatment, richness, composition, incubator) %>%
+  summarise(biomass = sum(biomass, na.rm = T))
+```
+
+## Addition of missing data as NA (and addition of realized richness)
+
+```{r, message=FALSE, warning=FALSE}
+# biomass
+biomass$timestamp <- as.numeric(biomass$timestamp)
+
+biomass.temp <- biomass %>%
+  dplyr::filter(timestamp == 20220629) %>%
+  mutate(timestamp = 20220701,
+         day = 284, 
+         biomass = NA)
+
+biomass <- full_join(biomass, biomass.temp)
+rm(biomass.temp)
+
+# densities & biomass
+densities$timestamp <- as.numeric(densities$timestamp)
+
+dens.temp <- densities %>%
+  dplyr::filter(timestamp == 20220629) %>%
+  mutate(timestamp = 20220701,
+         day = 284, 
+         density = NA,
+         biomass = NA)
+
+densities <- full_join(densities, dens.temp)
+rm(dens.temp)
+
+## bacteria
+bac <- densities %>% dplyr::filter(species=="Bacteria")
+grid <- expand_grid(bottle=unique(bac$bottle), day=days)
+grid <- full_join(grid, days_timestamps)
+
+bac_structure <- bac %>%
+  group_by(bottle,species,light_treatment,richness,composition,incubator,method,ForecastTarget) %>%
+  summarise(n=n())%>%
+  dplyr::select(-n)
+
+grid <- full_join(grid, bac_structure)
+bac <- full_join(bac,grid %>% mutate(timestamp=as.numeric(timestamp)))
+densities <- full_join(densities, bac)
+
+## algae
+
+Algae <- densities %>% dplyr::filter(species=="Algae")
+grid <- expand_grid(bottle=unique(Algae$bottle), day=days)
+grid <- full_join(grid, days_timestamps)
+
+Algae_structure <- Algae %>%
+  group_by(bottle,species,light_treatment,richness,composition,incubator,method,ForecastTarget) %>%
+  summarise(n=n())%>%
+  dplyr::select(-n)
+
+grid <- full_join(grid, Algae_structure)
+Algae <- full_join(Algae,grid %>% mutate(timestamp=as.numeric(timestamp)))
+densities <- full_join(densities, Algae)
+
+## Didinium
+
+grid$species <- "Didinium nasutum"
+grid$method <- "Manual count"
+grid$ForecastTarget <- F
+did <- densities %>% dplyr::filter(species=="Didinium nasutum")
+
+did <- full_join(did,grid%>% mutate(timestamp=as.numeric(timestamp),
+                                    day=as.double(day)), by=colnames(grid))
+
+densities <- full_join(densities, did)
+
+densities <- densities %>% #last day of Didinium set to 0 for interpolation
+  mutate(density = ifelse(species=="Didinium nasutum" & day==287, 0, density),
+         biomass = ifelse(species=="Didinium nasutum" & day==287, 0, biomass))
+
+# Carbon and Nitrogen
+
+water_chem.temp <- water_chem %>%
+  dplyr::filter(timestamp == 20220704) %>%
+  mutate(timestamp = 20220701,
+         day = 284, 
+         concentration = NA)
+
+water_chem <- full_join(water_chem, water_chem.temp)
+rm(water_chem.temp)
+
+grid <- expand_grid(bottle=unique(water_chem$bottle),
+                    day=days,
+                    type=unique(water_chem$type))
+
+grid <- full_join(grid, days_timestamps)
+chem_structure <- water_chem %>%
+  group_by(bottle,type,light_treatment,richness,composition,incubator) %>%
+  summarise(n=n())%>%
+  dplyr::select(-n)
+
+grid <- full_join(grid, chem_structure)
+water_chem <- full_join(water_chem,grid %>% mutate(timestamp=as.numeric(timestamp)))
+
+# Oxygen
+
+o2.temp <- o2 %>%
+  dplyr::filter(timestamp == 20220704) %>%
+  mutate(timestamp = 20220701,
+         day = 284, 
+         percent_o2 = NA)
+
+o2 <- full_join(o2, o2.temp)
+
+o2.temp <- o2_bothMeas %>%
+  dplyr::filter(timestamp == 20220704) %>%
+  mutate(timestamp = 20220701,
+         day = 284, 
+         percent_o2 = NA)
+
+o2_bothMeas <- full_join(o2_bothMeas, o2.temp)
+
+o2.temp <- o2 %>%
+  dplyr::filter(timestamp == 20220704) %>%
+  mutate(timestamp = 20211201,
+         day = 72, 
+         percent_o2 = NA)
+
+o2 <- full_join(o2, o2.temp)
+
+o2.temp <- o2_bothMeas %>%
+  dplyr::filter(timestamp == 20220704) %>%
+  mutate(timestamp = 20211201,
+         day = 72, 
+         percent_o2 = NA)
+
+o2_bothMeas <- full_join(o2_bothMeas, o2.temp)
+rm(o2.temp)
+
+## Adding realized richness
+biomass <- full_join(biomass, realized.richness)
+densities <- full_join(densities, realized.richness)
+o2 <- full_join(o2, realized.richness)
+o2_bothMeas <- full_join(o2_bothMeas, realized.richness)
+water_chem <- full_join(water_chem, realized.richness)
+```
+
+
+# Interpolation, detrending and transformation of data {#interpolation}
+
+## Interpolation and imputation (creation of equidistant data):
+
+```{r, message=FALSE, warning=FALSE}
+## impute and interpolate
+
+# Total biomass
+
+time.interp <- time.interp.fun(timestep = biomass$day)
+biomass.int <- biomass %>% na.omit() %>% arrange(day) 
+biomass.int <- 
+  setDT(biomass.int)[, list(day = time.interp,
+                            biomass = chi(day, biomass, time.interp)), 
+                     by = .(bottle,composition,
+                            light_treatment,
+                            richness,incubator, realized_richness)]
+
+# species densities and biomass
+time.interp <- time.interp.fun(timestep = densities$day)
+densities.int <- densities %>% na.omit() %>% arrange(day)  %>%
+  dplyr::filter(species !="Didinium nasutum")
+densities.int <- 
+  setDT(densities.int)[, list(day = time.interp,
+                              density = chi(day, density, time.interp),
+                              biomass = chi(day, biomass, time.interp)), 
+                       by = .(species,bottle,composition,
+                              light_treatment,ForecastTarget,
+                              richness,incubator,method, realized_richness)]
+
+densities.int$density <- ifelse(densities.int$density<0,0,densities.int$density)
+densities.int$biomass <- ifelse(densities.int$biomass<0,0,densities.int$biomass)
+
+densities.int.other <- densities %>%
+  dplyr::filter(species %in% other) %>%
+  drop_na("density") %>%
+  arrange(day)
+
+densities.int.other <- 
+  setDT(densities.int.other)[, list(day = time.interp,
+                                    density = chi(day, density, time.interp)),
+                             by = .(species,bottle,composition,
+                                    light_treatment,ForecastTarget,
+                                    richness,incubator,method, realized_richness)]
+
+densities.int.other$density <- ifelse(densities.int.other$density<0,0,densities.int.other$density)
+densities.int.other$biomass <- NA
+
+densities.int <- full_join(densities.int, densities.int.other)
+
+# Oxygen
+
+time.interp <- time.interp.fun(timestep = o2$day)
+o2.int <- o2 %>% na.omit() %>% arrange(day)
+o2.int$method <- "o2meter"
+o2.int <- setDT(o2.int)[, list(day = time.interp,
+                               percent_o2 = chi(day, percent_o2, time.interp)), 
+                        by = .(bottle,composition,
+                               light_treatment, richness,
+                               incubator,method, realized_richness)]
+
+
+# Water chemistry
+
+time.interp <- time.interp.fun(timestep = water_chem$day)
+water_chem.int <- water_chem %>% dplyr::select(-cv, -n) %>% na.omit() %>% arrange(day)
+water_chem.int <- setDT(water_chem.int)[, list(day = time.interp,
+                                               concentration = chi(day, concentration, time.interp)),
+                                        by = .(bottle,composition,
+                                               light_treatment, richness,
+                                               incubator,type, realized_richness)]
+```
+
+
+## Detrending & standardization
+
+```{r, message=FALSE, warning=FALSE}
+## remove linear trend
+
+## total biomass
+
+biomass.int.detrend.complete <- setDT(biomass.int)[, list(day = day,
+                                                          biomass.original = biomass,
+                                                          biomass.seg = resid(segmented(lm(biomass~day), seg.Z = ~day, psi=c(93,198))),
+                                                          biomass = residuals(lm(biomass~day))),
+                                                   by = .(bottle,richness,
+                                                          composition,incubator,
+                                                          light_treatment, realized_richness)]
+
+## species densities and biomass
+
+DesmoB2.int <- densities.int %>%
+  filter(species %in% c("Desmodesmus armatus","Desmodesmus clumps") & bottle=="b_02")
+
+densities.int.detrend.complete <- densities.int %>%
+  filter(!(species %in% c("Desmodesmus armatus","Desmodesmus clumps") & bottle=="b_02"))
+
+densities.int.detrend.complete <- 
+  setDT(densities.int.detrend.complete)[, list(day = day,
+                                               density.original = density, # original density TS
+                                               biomass.original = biomass, # original biomass TS
+                                               density.seg = resids_seg_lm(density, day, c(93,198)), # density detrended segmented
+                                               biomass.seg = resids_seg_lm(biomass, day, c(93,198)), # biomass detrended segmented
+                                               density = residuals(lm(density~day)), # density detrended linear simple
+                                               biomass = resids_lm(biomass, day)), # biomass detrended linaer simple
+                                        by = .(species,bottle,richness,
+                                               composition,incubator,
+                                               method,light_treatment,ForecastTarget,
+                                               realized_richness)]
+
+DesmoB2.int.detrend.complete <- setDT(DesmoB2.int)[, list(day = day,
+                                                          density.original = density,
+                                                          biomass.original = biomass,
+                                                          density.seg = resids_seg_lm(density, day, c(93,198)),
+                                                          biomass.seg = resids_seg_lm(biomass, day, c(93,198)),
+                                                          density = residuals(lm(density~day)),
+                                                          biomass = resids_lm(biomass, day)),
+                                                   by = .(species,bottle,richness,
+                                                          composition,incubator,
+                                                          method,light_treatment,ForecastTarget,
+                                                          realized_richness)]
+
+## Oxygen
+
+o2.int.detrend.complete <- setDT(o2.int)[, list(day = day,
+                                                percent_o2.original = percent_o2,
+                                                percent_o2.seg = resid(segmented(lm(percent_o2~day), seg.Z = ~day, psi=c(93,198))),
+                                                percent_o2 = residuals(lm(percent_o2~day))),
+                                         by = .(bottle,
+                                                composition, richness,incubator,
+                                                method,light_treatment, realized_richness)]
+
+## water chemistry
+
+water_chem.int.detrend.complete <- setDT(water_chem.int)[, list(day = day,
+                                                                concentration.original = concentration,
+                                                                concentration.seg = resid(segmented(lm(concentration~day), 
+                                                                                                    seg.Z = ~day, psi=c(93,198))),
+                                                                concentration = residuals(lm(concentration~day))),
+                                                         by = .(type,bottle,
+                                                                composition, richness,incubator,
+                                                                light_treatment, realized_richness)]
+
+##############################################################
+## Standardization
+
+biomass.int.detrend.complete <- biomass.int.detrend.complete %>%
+  group_by(bottle, richness, light_treatment, composition, incubator, realized_richness) %>%
+  mutate(biomass.detrended.unstandardized = biomass + mean(biomass.original),
+         biomass.seg.detrended.unstandardized = biomass.seg + mean(biomass.original),
+         biomass = biomass/sd(biomass, na.rm = T),
+         biomass.seg = biomass.seg/sd(biomass.seg, na.rm = T))
+
+
+densities.int.detrend.complete <- densities.int.detrend.complete %>%
+  group_by(species, bottle, richness, light_treatment, composition, incubator, method, realized_richness) %>%
+  mutate(density.detrended.unstandardized = density + mean(density.original),
+         biomass.detrended.unstandardized = biomass + mean(biomass.original),
+         density.seg.detrended.unstandardized = density.seg + mean(density.original),
+         biomass.seg.detrended.unstandardized = biomass.seg + mean(biomass.original), 
+         density = density/sd(density, na.rm = T), 
+         biomass = biomass/sd(biomass, na.rm = T), 
+         density.seg = density.seg/sd(density.seg, na.rm = T), 
+         biomass.seg = biomass.seg/sd(biomass.seg, na.rm = T)) %>% 
+  mutate(density = ifelse(is.nan(density),0,density), # because didinium
+         biomass = ifelse(is.nan(biomass),0,biomass),
+         density.seg = ifelse(is.nan(density.seg),0,density.seg), # because didinium
+         biomass.seg = ifelse(is.nan(biomass.seg),0,biomass.seg))
+
+
+DesmoB2.int.detrend.complete <- DesmoB2.int.detrend.complete %>%
+  group_by(species, bottle, richness, light_treatment, composition, incubator, method, realized_richness) %>%
+  mutate(density.detrended.unstandardized = density + mean(density.original),
+         biomass.detrended.unstandardized = biomass + mean(biomass.original),
+         density.seg.detrended.unstandardized = density.seg + mean(density.original),
+         biomass.seg.detrended.unstandardized = biomass.seg + mean(biomass.original), 
+         density = density/sd(density, na.rm = T), 
+         biomass = biomass/sd(biomass, na.rm = T), 
+         density.seg = density.seg/sd(density.seg, na.rm = T), 
+         biomass.seg = biomass.seg/sd(biomass.seg, na.rm = T)) 
+
+
+densities.int.detrend.complete <- rbind(densities.int.detrend.complete,
+                                        DesmoB2.int.detrend.complete)
+
+
+o2.int.detrend.complete <- o2.int.detrend.complete %>%
+  group_by(bottle, light_treatment, composition, incubator, method, richness, realized_richness) %>%
+  mutate(percent_o2.detrended.unstandardized = percent_o2 + mean(percent_o2.original),
+         percent_o2.seg.detrended.unstandardized = percent_o2.seg + mean(percent_o2.original),
+         percent_o2 = percent_o2/sd(percent_o2, na.rm = T),
+         percent_o2.seg = percent_o2.seg/sd(percent_o2.seg, na.rm = T))
+
+water_chem.int.detrend.complete <- water_chem.int.detrend.complete %>%
+  group_by(bottle, light_treatment, composition, incubator, type, richness, realized_richness) %>%
+  mutate(concentration.detrended.unstandardized = concentration + mean(concentration.original),
+         concentration.seg.detrended.unstandardized = concentration.seg + mean(concentration.original),
+         concentration = concentration/sd(concentration, na.rm = T),
+         concentration.seg = concentration.seg/sd(concentration.seg, na.rm = T))
+```
+
+# Further processing/calculations
+
+## Adding more information regarding the light treatment.
+
+```{r}
+# adding light schedule
+dd_list <- list(biomass = biomass, 
+                biomass.int.detrend.complete = biomass.int.detrend.complete, 
+                densities = densities, 
+                densities.int.detrend.complete = densities.int.detrend.complete, 
+                o2 = o2, 
+                o2.int.detrend.complete = o2.int.detrend.complete, 
+                water_chem = water_chem,
+                water_chem.int.detrend.complete = water_chem.int.detrend.complete)
+
+dd_list <- mclapply(dd_list, function(df){
+  df <- df %>%
+    dplyr::mutate(light = case_when(light_treatment =="constant" ~ 30,
+                                    day >= 191 ~ 1,
+                                    184 <= day & day < 191 ~ 2,
+                                    177 <= day & day < 184 ~ 4,
+                                    170 <= day & day < 177 ~ 6,
+                                    163 <= day & day < 170 ~ 8,
+                                    156 <= day & day < 163 ~ 10,
+                                    149 <= day & day < 156 ~ 12,
+                                    142 <= day & day < 149 ~ 14,
+                                    135 <= day & day < 142 ~ 16,
+                                    128 <= day & day < 135 ~ 18,
+                                    121 <= day & day < 128 ~ 20,
+                                    114 <= day & day < 121 ~ 22,
+                                    107 <= day & day < 114 ~ 24,
+                                    100 <= day & day < 107 ~ 26,
+                                    93 <= day & day < 100 ~ 28,
+                                    day < 93 ~ 30),
+                  light_phase = case_when(light_treatment =="constant" ~ "constant",
+                                          day < 93 ~ "constant before decrease",
+                                          day >= 93 & day < 198 ~ "decreasing",
+                                          day >= 198 ~ "constant after decrease"))
+  df
+}, mc.cores = detectCores()-2)
+```
+
+
+## Calculating Daily species richness and their average (mean & median)
+
+```{r, message=FALSE}
+# raw
+day_spec_rich <- dd_list$densities %>%
+  dplyr::filter(species %in% vars, 
+                (method=="FlowCam" & density>=100) | (method=="Video" & density>=10) | (method=="Flowcytometer")) %>%
+  group_by(bottle, day) %>%
+  summarise(day_richness = n()) %>%
+  dplyr::mutate(day_richness = ifelse(day==284,NA,day_richness)) %>%
+  group_by(bottle) %>%
+  dplyr::mutate(mean_richness = mean(day_richness, na.rm = T),
+                median_richness = median(day_richness, na.rm = T))
+
+dd_list$densities <- full_join(dd_list$densities, day_spec_rich)
+dd_list$biomass <- full_join(dd_list$biomass, day_spec_rich)
+dd_list$o2 <- full_join(dd_list$o2, day_spec_rich)
+dd_list$water_chem <- full_join(dd_list$water_chem, day_spec_rich)
+
+# interpolated, detrended, etc.
+day_spec_rich <- densities.int %>%
+  dplyr::filter(species %in% vars, 
+                (method=="FlowCam" & density>=100) | (method=="Video" & density>=10) | (method=="Flowcytometer")) %>%
+  group_by(bottle, day) %>%
+  summarise(day_richness = n()) %>%
+  group_by(bottle) %>%
+  dplyr::mutate(mean_richness = mean(day_richness, na.rm = T),
+                median_richness = median(day_richness, na.rm = T))
+
+dd_list$densities.int.detrend.complete <- full_join(dd_list$densities.int.detrend.complete, day_spec_rich)
+dd_list$biomass.int.detrend.complete <- full_join(dd_list$biomass.int.detrend.complete, day_spec_rich)
+dd_list$o2.int.detrend.complete <- full_join(dd_list$o2.int.detrend.complete, day_spec_rich)
+dd_list$water_chem.int.detrend.complete <- full_join(dd_list$water_chem.int.detrend.complete, day_spec_rich)
+```
+
+
+# Saving processed data
+
+```{r}
+saveRDS(object = dd_list, file = here("Data/2_TimeSeriesData/Transformed/DensityBiomassTimeSeries.RDS"))
+write_csv(o2_bothMeas, here("Data/2_TimeSeriesData/Transformed/OxygenBothSensors.csv"))
+```
+

@@ -1,0 +1,1279 @@
+---
+title: "Forecasting and Calculation of Time Series Metrics"
+author: "Romana Limberger, Uriah Daugaard et al."
+always_allow_html: true
+output:
+  html_document:
+    number_sections: yes
+    code_folding: show
+    toc: yes
+    toc_float: yes
+    toc_depth: 4
+---
+
+<style type="text/css">
+.main-container {
+  max-width: 100% !important;
+  margin: auto;
+}
+</style>
+
+
+# A note
+
+The multiview EDM forecasts are time-costly and can take days. All forecasts are in R-chunks that are not evaluated by default. If you want to run the forecasts change eval=FALSE to eval=TRUE.
+  
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Dependencies, functions and data
+
+## Dependencies 
+
+```{r packages, message=FALSE, warning=FALSE}
+library(tidyverse) 
+library(randomForest)
+library(data.table)
+library(forecast)
+library(parallel)
+library(doParallel)
+library(rEDM)
+library(here)
+library(caret)
+library(GGally)
+library(reticulate) 
+library(keras) 
+
+set.seed(1)
+options(dplyr.summarise.inform = FALSE)
+```
+
+## Functions
+
+```{r load_own_fcts, message=FALSE, warning=FALSE}
+source(file = here("R/1_Functions/ForecastingFunctions.R")) ## forecasting functions 
+source(file = here("R/1_Functions/PermutationEntropy.R")) ## Permutation entropy function
+```
+
+
+## Data {#data}
+
+```{r dd_list, message=FALSE, warning=FALSE}
+dd_list <- readRDS(here("Data/2_TimeSeriesData/Transformed/DensityBiomassTimeSeries.RDS"))
+names(dd_list)
+```
+
+**Contents of dd_list**
+
+- "biomass" contains the transformed time series of the total biomass 
+- "densities" contains the transformed time series of the taxa densities and biomasses
+- "o2" contains the transformed oxygen time series
+- "water_chem" contains the transformed water chemistry time series (Carbon and Nitrogen)
+- "int.detrend.complete" indicates that it contains the respective transformed time series (interpolated, detrended and standardized over the whole duration of the time series)
+
+# Merging of time series data
+
+## Linearly detrended data 
+
+```{r all_data_complete, message=FALSE, warning=FALSE}
+complete.ts.dd <- 
+  dd_list$biomass.int.detrend.complete %>%
+  mutate(variable = "Total biomass",
+         value = biomass) %>%
+  ungroup() %>%
+  dplyr::select(day, bottle, richness, composition, incubator,
+                realized_richness, light, light_treatment, 
+                light_phase, variable, value, mean_richness, median_richness)
+
+complete.ts.dd <-
+  full_join(complete.ts.dd,
+            dd_list$densities.int.detrend.complete %>%
+              mutate(variable = species,
+                     value = density) %>%
+              ungroup() %>%
+              dplyr::select(day, bottle, richness, composition, incubator,
+                            realized_richness, light, light_treatment, 
+                            light_phase, variable, value, mean_richness, median_richness))
+
+complete.ts.dd <-
+  full_join(complete.ts.dd,
+            dd_list$o2.int.detrend.complete %>%
+              mutate(variable = "Mean oxygen",
+                     value = percent_o2) %>%
+              ungroup() %>%
+              dplyr::select(day, bottle, richness, composition, incubator,
+                            realized_richness, light, light_treatment, 
+                            light_phase, variable, value, mean_richness, median_richness))
+
+complete.ts.dd <-
+  full_join(complete.ts.dd,
+            dd_list$water_chem.int.detrend.complete %>%
+              mutate(variable = type,
+                     value = concentration) %>%
+              ungroup() %>%
+              dplyr::select(day, bottle, richness, composition, incubator,
+                            realized_richness, light, light_treatment, 
+                            light_phase, variable, value, mean_richness, median_richness))
+
+
+complete.ts.dd <- complete.ts.dd %>%
+  pivot_wider(names_from = variable, values_from = value)
+```
+
+## Data detrended with segmented approach
+
+```{r all_data_complete_segmented, message=FALSE, warning=FALSE}
+complete.ts.dd.seg <- 
+  dd_list$biomass.int.detrend.complete %>%
+  mutate(variable = "Total biomass",
+         value = biomass.seg) %>%
+  ungroup() %>%
+  dplyr::select(day, bottle, richness, composition, incubator,
+                realized_richness, light, light_treatment, 
+                light_phase, variable, value, mean_richness, median_richness)
+
+complete.ts.dd.seg <-
+  full_join(complete.ts.dd.seg,
+            dd_list$densities.int.detrend.complete %>%
+              mutate(variable = species,
+                     value = density.seg) %>%
+              ungroup() %>%
+              dplyr::select(day, bottle, richness, composition, incubator,
+                            realized_richness, light, light_treatment, 
+                            light_phase, variable, value, mean_richness, median_richness))
+
+complete.ts.dd.seg <-
+  full_join(complete.ts.dd.seg,
+            dd_list$o2.int.detrend.complete %>%
+              mutate(variable = "Mean oxygen",
+                     value = percent_o2.seg) %>%
+              ungroup() %>%
+              dplyr::select(day, bottle, richness, composition, incubator,
+                            realized_richness, light, light_treatment, 
+                            light_phase, variable, value, mean_richness, median_richness))
+
+complete.ts.dd.seg <-
+  full_join(complete.ts.dd.seg,
+            dd_list$water_chem.int.detrend.complete %>%
+              mutate(variable = type,
+                     value = concentration.seg) %>%
+              ungroup() %>%
+              dplyr::select(day, bottle, richness, composition, incubator,
+                            realized_richness, light, light_treatment, 
+                            light_phase, variable, value, mean_richness, median_richness))
+
+
+complete.ts.dd.seg <- complete.ts.dd.seg %>%
+  pivot_wider(names_from = variable, values_from = value)
+```
+
+# Forecasting of abundances, biomass & oxygen
+
+
+```{r forecast_prep, message=FALSE, warning=FALSE}
+additional_targets <- c("Mean oxygen", "Total biomass")
+
+colnames(complete.ts.dd) <- gsub(" ", "_", colnames(complete.ts.dd))
+complete.ts.dd.bottle <- split(complete.ts.dd, complete.ts.dd$bottle)
+
+all_possible_predictors <- c(
+  "Total_biomass",
+  "Bacteria",
+  "Chlamydomonas_clumps",
+  "Chlamydomonas_reinhardtii",
+  "Coleps_sp.",
+  "Cosmarium_botrytis",
+  "Desmodesmus_armatus",
+  "Desmodesmus_clumps",
+  "Dividing_Chlamydomonas",
+  "Paramecium_bursaria",
+  "Paramecium_caudatum",
+  "Small_cells",
+  "Staurastrum_gracile",
+  "Monoraphidium_obtusum",
+  "Staurastrum_polytrichum",
+  "Stylonychia_sp.",
+  "Colpidium_striatum",
+  "Dexiostoma_campylum",
+  "Euplotes_daidaleos",
+  "Loxocephalus_sp.",
+  "Mean_oxygen",
+  "IC",
+  "TC",
+  "TN",
+  "TOC"
+)  
+```
+
+
+## Forecasts of linearly detrended time series
+
+### Multiview EDM
+
+```{r complete_forecasts_mv, message=FALSE, warning=FALSE, cache=FALSE, eval=FALSE}
+set.seed(1231)
+
+### Log file
+write.file = 'ForecastLog_completeTS_mvEDM.txt'
+file.create(write.file)
+
+# forecasting parallelized for the the bottles.
+# with 30 bottles the following number of cores make the most sense: 5, 6, 10, 15, 30
+# however, not every bottle will take the same time, because the number of targets and predictors varies...
+complete.multiview.forecasts <- mclapply(complete.ts.dd.bottle, function(dd.bottle){
+  
+  bot <- unique(dd.bottle$bottle)
+  bottle_specs <- dd.bottle %>%
+    summarize(bottle = unique(bottle),
+              richness = unique(richness),
+              composition = unique(composition),
+              incubator = unique(incubator),
+              realized_richness = unique(realized_richness),
+              mean_richness = unique(mean_richness), 
+              median_richness = unique(median_richness),
+              light_treatment = unique(light_treatment))
+  
+  ### Log file
+  write(paste0("Bottle: ", bot, " started at: ", Sys.time(), "\n"), write.file, append = T)
+  bot.start.time <- Sys.time()
+  
+  ### Bottle specific preparations
+  dd.bottle <- dd.bottle[,colSums(is.na(dd.bottle))<nrow(dd.bottle)] %>%
+    ungroup()
+  
+  targets <- dd_list$densities.int.detrend.complete
+  targets <- unlist(unique(targets[targets$bottle==bot & targets$ForecastTarget==T, "species"]))
+  targets <- c(targets, additional_targets)
+  targets <- gsub(" ", "_", targets)
+  targets <- unname(targets)
+  
+  idx <- which(colnames(dd.bottle) %in% all_possible_predictors)
+  possible_predictors <- unique(c(targets, colnames(dd.bottle)[idx]))
+  possible_predictors <- possible_predictors[!(possible_predictors %in% c("Didinium_nasutum","Debris",
+                                                                          "Digested_algae","Small_unidentified",
+                                                                          "Algae"))]
+  possible_predictors <- gsub(" ", "_", possible_predictors)
+  
+  percent <- 0.9
+  ks <- unique(round(exp(seq(log(0.8),log(ceiling(percent*nrow(dd.bottle))),length.out = 42))))
+  lib <- c(1, ceiling(percent*nrow(dd.bottle)))
+  pred <- c(ceiling(percent*nrow(dd.bottle))+1, nrow(dd.bottle))
+  
+  ### Forecasting
+  df <- model_fitter_wrapper(whole.data = dd.bottle,
+                             predictor_combinations = list(possible_predictors),
+                             targets = targets,
+                             lib = lib, pred = pred,
+                             num.clusters = 1,
+                             E = 3, max_lag = 4, k=ks, Tp = 1,
+                             predictors = possible_predictors, 
+                             write.file = write.file)
+  
+  df$bottle <- bot
+  df <- full_join(bottle_specs,df)
+  
+  ### Log file
+  elapsed <- Sys.time() - bot.start.time
+  elapsed <- paste(round(elapsed,2), attr(elapsed, "units"))
+  write(paste0("Bottle: ", bot, " ended at: ", Sys.time(), "; Elapsed time: ", elapsed, "\n"), write.file, append = T)
+  
+  ## return 
+  df
+  
+}, mc.cores = detectCores()-2) 
+
+complete.multiview.forecasts <- purrr::reduce(complete.multiview.forecasts, dplyr::full_join)
+
+saveRDS(complete.multiview.forecasts, file = here("Data/3_ForecastsResults/1_DetrendedLinearly/complete.multiview.forecasts.RDS"))
+```
+
+
+### Simplex EDM
+
+```{r univariatesimplexcomplete, message=FALSE, warning=FALSE, cache=FALSE, eval=FALSE}
+set.seed(1231)
+
+### Log file
+write.file = 'ForecastLog_completeTS_simplexEDM.txt'
+file.create(write.file)
+
+complete.simplex.forecasts <- mclapply(complete.ts.dd.bottle, function(dd.bottle){
+  
+  bot <- unique(dd.bottle$bottle)
+  
+  bottle_specs <- dd.bottle %>%
+    summarize(bottle = unique(bottle),
+              richness = unique(richness),
+              composition = unique(composition),
+              incubator = unique(incubator),
+              realized_richness = unique(realized_richness),
+              mean_richness = unique(mean_richness), 
+              median_richness = unique(median_richness),
+              light_treatment = unique(light_treatment))
+  
+  ### Log file
+  write(paste0("Bottle: ", bot, " started at: ", Sys.time(), "\n"), write.file, append = T)
+  bot.start.time <- Sys.time()
+  
+  ### Bottle specific preparations
+  dd.bottle <- dd.bottle[,colSums(is.na(dd.bottle))<nrow(dd.bottle)] %>%
+    ungroup()
+  
+  targets <- dd_list$densities.int.detrend.complete
+  targets <- unlist(unique(targets[targets$bottle==bot & targets$ForecastTarget==T, "species"]))
+  targets <- c(targets, additional_targets)
+  targets <- gsub(" ", "_", targets)
+  targets <- unname(targets)
+  
+  percent <- 0.9
+  lib <- c(1, ceiling(percent*nrow(dd.bottle)))
+  pred <- c(ceiling(percent*nrow(dd.bottle))+1, nrow(dd.bottle))
+  
+  df <- lapply(targets, function(target){
+    ddtarget <- dd.bottle[,c("day",target)]
+    E <- UniSimplex_determineE(ddtarget, target, maxE = 40, lib, pred)
+    forecast <- Simplex(dataFrame = ddtarget, lib = lib, 
+                        pred = pred, target = target,
+                        columns = target, E = E)
+    rmse <- sqrt(mean((forecast$Observations-forecast$Predictions)^2, na.rm = T))
+    ddrmse <- data.frame(Target=target, RMSE=rmse, E=E)
+    ddrmse
+  })
+  
+  df <- do.call("rbind", df)
+  df$bottle <- bot
+  df <- full_join(bottle_specs,df)
+  
+  ### Log file
+  elapsed <- Sys.time() - bot.start.time
+  elapsed <- paste(round(elapsed,2), attr(elapsed, "units"))
+  write(paste0("Bottle: ", bot, " ended at: ", Sys.time(), "; Elapsed time: ", elapsed, "\n"), write.file, append = T)
+  
+  ## return 
+  df
+  
+}, mc.cores = 1)
+
+complete.simplex.forecasts <- purrr::reduce(complete.simplex.forecasts, dplyr::full_join)
+
+saveRDS(complete.simplex.forecasts, file = here("Data/3_ForecastsResults/1_DetrendedLinearly/complete.simplex.forecasts.RDS"))
+```
+
+
+### ARIMA
+
+```{r arima_forecast_complete, message=FALSE, warning=FALSE, cache=FALSE, eval=FALSE}
+set.seed(1231)
+
+### Log file
+write.file = 'ForecastLog_completeTS_ARIMA.txt'
+file.create(write.file)
+
+complete.arima.forecasts <- mclapply(complete.ts.dd.bottle, function(dd.bottle){
+  
+  bot <- unique(dd.bottle$bottle)
+  bottle_specs <- dd.bottle %>%
+    summarize(bottle = unique(bottle),
+              richness = unique(richness),
+              composition = unique(composition),
+              incubator = unique(incubator),
+              realized_richness = unique(realized_richness),
+              mean_richness = unique(mean_richness), 
+              median_richness = unique(median_richness),
+              light_treatment = unique(light_treatment))
+  
+  ### Log file
+  write(paste0("Bottle: ", bot, " started at: ", Sys.time(), "\n"), write.file, append = T)
+  bot.start.time <- Sys.time()
+  
+  ### Bottle specific preparations
+  dd.bottle <- dd.bottle[,colSums(is.na(dd.bottle))<nrow(dd.bottle)] %>%
+    ungroup()
+  
+  targets <- dd_list$densities.int.detrend.complete
+  targets <- unlist(unique(targets[targets$bottle==bot & targets$ForecastTarget==T, "species"]))
+  targets <- c(targets, additional_targets)
+  targets <- gsub(" ", "_", targets)
+  targets <- unname(targets)
+  
+  idx <- which(colnames(dd.bottle) %in% all_possible_predictors)
+  possible_predictors <- unique(c(targets, colnames(dd.bottle)[idx]))
+  possible_predictors <- possible_predictors[!(possible_predictors %in% c("Didinium_nasutum","Debris",
+                                                                          "Digested_algae","Small_unidentified",
+                                                                          "Algae"))]
+  covariates <- gsub(" ", "_", possible_predictors)
+  
+  percent <- 0.9
+  lib <- 1:ceiling(percent*nrow(dd.bottle))
+  pred <- (ceiling(percent*nrow(dd.bottle))+1):nrow(dd.bottle)
+  b.train <- dd.bottle[lib,]
+  b.forecast <- dd.bottle[pred,] 
+  
+  ### Forecasting
+  
+  df <- lapply(targets, function(target){
+    
+    idx <- which(target==covariates)
+    predictors <- covariates[-idx]
+    m <- auto.arima(b.train[target],max.p=10,max.q=10,max.d=3, max.order = 15) #d=0, xreg = as.matrix(b.train[,predictors])
+    # checkresiduals(m)
+    forecast <- fitted(Arima(unlist(dd.bottle[,target]),model=m))[pred] #xreg = as.matrix(dd.bottle[,predictors])
+    
+    rmse <- sqrt(mean((unlist(b.forecast[target])-forecast)^2, na.rm = T))
+    
+    data.frame(Target=target, RMSE=rmse)
+  })
+  
+  df <- do.call("rbind", df)
+  df$bottle <- bot
+  df <- full_join(bottle_specs,df)
+  
+  ### Log file
+  elapsed <- Sys.time() - bot.start.time
+  elapsed <- paste(round(elapsed,2), attr(elapsed, "units"))
+  write(paste0("Bottle: ", bot, " ended at: ", Sys.time(), "; Elapsed time: ", elapsed, "\n"), write.file, append = T)
+  
+  ## return 
+  df
+  
+}, mc.cores = detectCores()-2) 
+
+complete.arima.forecasts <- purrr::reduce(complete.arima.forecasts, dplyr::full_join)
+
+saveRDS(complete.arima.forecasts, file = here("Data/3_ForecastsResults/1_DetrendedLinearly/complete.arima.forecasts.RDS"))
+```
+
+### Recurrent neural networks 
+
+```{r RNN_forecast_complete, message=FALSE, warning=FALSE, cache=FALSE, eval=FALSE}
+virtualenv_create("myenv")
+use_virtualenv("myenv")
+# set some parameters for our model
+batch_size <- 64 # number of sequences to look at at one time during training
+total_epochs <- 30 # how many times we'll look @ the whole dataset while training our model
+
+set.seed(1231)
+
+### Log file
+write.file = 'ForecastLog_completeTS_RNN.txt'
+file.create(write.file)
+
+complete.rnn.forecasts <- mclapply(complete.ts.dd.bottle, function(dd.bottle){
+  
+  bot <- unique(dd.bottle$bottle)
+  
+  bottle_specs <- dd.bottle %>%
+    summarize(bottle = unique(bottle),
+              richness = unique(richness),
+              composition = unique(composition),
+              incubator = unique(incubator),
+              realized_richness = unique(realized_richness),
+              mean_richness = unique(mean_richness), 
+              median_richness = unique(median_richness),
+              light_treatment = unique(light_treatment))
+  
+  ### Log file
+  write(paste0("Bottle: ", bot, " started at: ", Sys.time(), "\n"), write.file, append = T)
+  bot.start.time <- Sys.time()
+  
+  ### Bottle specific preparations
+  dd.bottle <- dd.bottle[,colSums(is.na(dd.bottle))<nrow(dd.bottle)] %>%
+    ungroup()
+  
+  targets <- dd_list$densities.int.detrend.complete
+  targets <- unlist(unique(targets[targets$bottle==bot & targets$ForecastTarget==T, "species"]))
+  targets <- c(targets, additional_targets)
+  targets <- gsub(" ", "_", targets)
+  targets <- unname(targets)
+  
+  idx <- which(colnames(dd.bottle) %in% all_possible_predictors)
+  possible_predictors <- unique(c(targets, colnames(dd.bottle)[idx]))
+  possible_predictors <- possible_predictors[!(possible_predictors %in% c("Didinium_nasutum","Debris",
+                                                                          "Digested_algae","Small_unidentified",
+                                                                          "Algae"))]
+  possible_predictors <- gsub(" ", "_", possible_predictors)
+  
+  percent <- 0.9
+  lib <- 1:ceiling(percent*nrow(dd.bottle))
+  pred <- (ceiling(percent*nrow(dd.bottle))+1):nrow(dd.bottle)
+  X_train <- as.matrix(dd.bottle[lib[-length(lib)], possible_predictors])
+  X_test <- as.matrix(dd.bottle[pred[-length(pred)], possible_predictors])
+  
+  df <- lapply(targets, function(target){
+    
+    y_train <- as.matrix(dd.bottle[lib[-1], target])
+    y_test <- as.matrix(dd.bottle[pred[-1], target])
+    
+    # initialize our model
+    model <- keras_model_sequential() %>%
+      layer_dense(units = 7, activation = 'relu', input_shape = length(possible_predictors), 
+                  kernel_initializer=initializer_random_uniform(seed = 43)) %>% 
+      layer_dense(units = 49, activation = 'relu',
+                  kernel_initializer=initializer_random_uniform(seed = 23)) %>%
+      layer_dense(units = 1, activation = 'linear',
+                  kernel_initializer=initializer_random_uniform(seed = 55))
+    
+    model %>% compile(
+      loss = 'mean_squared_error',
+      optimizer = 'adam',
+      metrics = c('mae')
+    )
+    
+    # Actually train our model! This step will take a while
+    trained_model <- model %>% fit(
+      x = X_train, # sequence we're using for prediction 
+      y = y_train, # sequence we're predicting
+      batch_size = batch_size, # how many samples to pass to our model at a time
+      epochs = total_epochs, # how many times we'll look @ the whole dataset
+      verbose=0,
+      validation_split = 0.1) # how much data to hold out for testing as we go along
+    
+    forecast <- data.frame(y = predict(model, x=X_test))
+    
+    rmse <- sqrt(mean(unlist(y_test-forecast)^2, na.rm = T))
+    
+    data.frame(Target=target, RMSE=rmse)
+  })
+  
+  df <- do.call("rbind", df)
+  df$bottle <- bot
+  df <- full_join(bottle_specs,df)
+  
+  ### Log file
+  elapsed <- Sys.time() - bot.start.time
+  elapsed <- paste(round(elapsed,2), attr(elapsed, "units"))
+  write(paste0("Bottle: ", bot, " ended at: ", Sys.time(), "; Elapsed time: ", elapsed, "\n"), write.file, append = T)
+  
+  ## return 
+  df
+}, mc.cores=detectCores()-2)
+
+complete.rnn.forecasts <- purrr::reduce(complete.rnn.forecasts, dplyr::full_join)
+saveRDS(complete.rnn.forecasts, file = here("Data/3_ForecastsResults/1_DetrendedLinearly/complete.rnn.forecasts.RDS"))
+```
+
+
+### Random forest
+
+```{r RF_forecast_complete, message=FALSE, warning=FALSE, cache=FALSE, eval=FALSE}
+set.seed(1231)
+
+max_lag = 4
+steps_ahead = 1
+
+### Log file
+write.file = 'ForecastLog_completeTS_RF.txt'
+file.create(write.file)
+
+complete.rf.forecasts <- mclapply(complete.ts.dd.bottle, function(dd.bottle){
+  
+  bot <- unique(dd.bottle$bottle)
+  
+  bottle_specs <- dd.bottle %>%
+    summarize(bottle = unique(bottle),
+              richness = unique(richness),
+              composition = unique(composition),
+              incubator = unique(incubator),
+              realized_richness = unique(realized_richness),
+              mean_richness = unique(mean_richness), 
+              median_richness = unique(median_richness),
+              light_treatment = unique(light_treatment))
+  
+  ### Log file
+  write(paste0("Bottle: ", bot, " started at: ", Sys.time(), "\n"), write.file, append = T)
+  bot.start.time <- Sys.time()
+  
+  ### Bottle specific preparations
+  dd.bottle <- dd.bottle[,colSums(is.na(dd.bottle))<nrow(dd.bottle)] %>%
+    ungroup()
+  
+  targets <- dd_list$densities.int.detrend.complete
+  targets <- unlist(unique(targets[targets$bottle==bot & targets$ForecastTarget==T, "species"]))
+  targets <- c(targets, additional_targets)
+  targets <- gsub(" ", "_", targets)
+  targets <- unname(targets)
+  
+  idx <- which(colnames(dd.bottle) %in% all_possible_predictors)
+  possible_predictors <- unique(c(targets, colnames(dd.bottle)[idx]))
+  possible_predictors <- possible_predictors[!(possible_predictors %in% c("Didinium_nasutum","Debris",
+                                                                          "Digested_algae","Small_unidentified",
+                                                                          "Algae"))]
+  possible_predictors <- gsub(" ", "_", possible_predictors)
+  
+  percent <- 0.9
+  lib <- 1:ceiling(percent*nrow(dd.bottle))
+  pred <- (ceiling(percent*nrow(dd.bottle))+1):nrow(dd.bottle)
+  pred <- pred - max_lag
+  lib <- lib - max_lag
+  lib <- lib[lib>0]
+  pred <- pred[pred>0]
+
+  df <- lapply(targets, function(target){
+    
+    df.emb <- dd.bottle[,target]
+    for(l in 1:max_lag){
+      predictor.lag <- lag(dd.bottle, steps_ahead + l - 1)
+      colnames(predictor.lag) <- paste0(colnames(predictor.lag), "_", l)
+      df.emb <- cbind(df.emb, predictor.lag)
+    }
+    df.emb <- df.emb %>% na.omit()
+    
+    # split into training and test data, then forecast
+    
+    test <- df.emb[pred,]
+    train <- df.emb[lib,]
+    
+    y_train <- train[, 1] # the target
+    X_train <- train[, -1] # everything but the target
+    
+    y_test <- test[, 1] # the target
+    X_test <- test[, -1] # everything but the target
+    
+    # fit the model
+    fit_rf <- randomForest(X_train, y_train)
+    
+    # predict using the test set
+    p <- predict(fit_rf, X_test)
+    forecasts_rf <- data.frame(observed=y_test,
+                               predicted=p)
+    
+    rmse <- sqrt(mean((forecasts_rf$observed-forecasts_rf$predicted)^2, na.rm = T))
+    
+    data.frame(Target=target, RMSE=rmse)
+  })
+  
+  df <- do.call("rbind", df)
+  df$bottle <- bot
+  df <- full_join(bottle_specs,df)
+  
+  ### Log file
+  elapsed <- Sys.time() - bot.start.time
+  elapsed <- paste(round(elapsed,2), attr(elapsed, "units"))
+  write(paste0("Bottle: ", bot, " ended at: ", Sys.time(), "; Elapsed time: ", elapsed, "\n"), write.file, append = T)
+  
+  ## return 
+  df
+}, mc.cores=detectCores()-2)
+
+complete.rf.forecasts <- purrr::reduce(complete.rf.forecasts, dplyr::full_join)
+saveRDS(complete.rf.forecasts, file = here("Data/3_ForecastsResults/1_DetrendedLinearly/complete.rf.forecasts.RDS"))
+```
+
+
+## Forecasts of time series detrended in segments
+
+```{r}
+colnames(complete.ts.dd.seg) <- gsub(" ", "_", colnames(complete.ts.dd.seg))
+complete.ts.dd.seg.bottle <- split(complete.ts.dd.seg, complete.ts.dd.seg$bottle)
+```
+
+
+### Multiview EDM
+
+```{r seg_complete_forecasts_mv, message=FALSE, warning=FALSE, cache=FALSE, eval=FALSE}
+set.seed(1231)
+
+### Log file
+write.file = 'seg_ForecastLog_completeTS_mvEDM.txt'
+file.create(write.file)
+
+complete.multiview.forecasts <- mclapply(complete.ts.dd.seg.bottle, function(dd.bottle){
+  
+  bot <- unique(dd.bottle$bottle)
+  bottle_specs <- dd.bottle %>%
+    summarize(bottle = unique(bottle),
+              richness = unique(richness),
+              composition = unique(composition),
+              incubator = unique(incubator),
+              realized_richness = unique(realized_richness),
+              mean_richness = unique(mean_richness), 
+              median_richness = unique(median_richness),
+              light_treatment = unique(light_treatment))
+  
+  ### Log file
+  write(paste0("Bottle: ", bot, " started at: ", Sys.time(), "\n"), write.file, append = T)
+  bot.start.time <- Sys.time()
+  
+  ### Bottle specific preparations
+  dd.bottle <- dd.bottle[,colSums(is.na(dd.bottle))<nrow(dd.bottle)] %>%
+    ungroup()
+  
+  targets <- dd_list$densities.int.detrend.complete
+  targets <- unlist(unique(targets[targets$bottle==bot & targets$ForecastTarget==T, "species"]))
+  targets <- c(targets, additional_targets)
+  targets <- gsub(" ", "_", targets)
+  targets <- unname(targets)
+  
+  idx <- which(colnames(dd.bottle) %in% all_possible_predictors)
+  possible_predictors <- unique(c(targets, colnames(dd.bottle)[idx]))
+  possible_predictors <- possible_predictors[!(possible_predictors %in% c("Didinium_nasutum","Debris",
+                                                                          "Digested_algae","Small_unidentified",
+                                                                          "Algae"))]
+  possible_predictors <- gsub(" ", "_", possible_predictors)
+  
+  percent <- 0.9
+  ks <- unique(round(exp(seq(log(0.8),log(ceiling(percent*nrow(dd.bottle))),length.out = 42))))
+  lib <- c(1, ceiling(percent*nrow(dd.bottle)))
+  pred <- c(ceiling(percent*nrow(dd.bottle))+1, nrow(dd.bottle))
+  
+  ### Forecasting
+  df <- model_fitter_wrapper(whole.data = dd.bottle,
+                             predictor_combinations = list(possible_predictors),
+                             targets = targets,
+                             lib = lib, pred = pred,
+                             num.clusters = 1,
+                             E = 3, max_lag = 4, k=ks, Tp = 1,
+                             predictors = possible_predictors, 
+                             write.file = write.file)
+  
+  df$bottle <- bot
+  df <- full_join(bottle_specs,df)
+  
+  ### Log file
+  elapsed <- Sys.time() - bot.start.time
+  elapsed <- paste(round(elapsed,2), attr(elapsed, "units"))
+  write(paste0("Bottle: ", bot, " ended at: ", Sys.time(), "; Elapsed time: ", elapsed, "\n"), write.file, append = T)
+  
+  ## return 
+  df
+  
+}, mc.cores = detectCores()-2) 
+
+complete.multiview.forecasts <- purrr::reduce(complete.multiview.forecasts, dplyr::full_join)
+
+saveRDS(complete.multiview.forecasts, file = here("Data/3_ForecastsResults/2_SegmentedAnalysis/complete.multiview.forecasts.RDS"))
+```
+
+
+### Simplex EDM
+
+```{r seg_univariatesimplexcomplete, message=FALSE, warning=FALSE, cache=FALSE, eval=FALSE}
+set.seed(1231)
+
+### Log file
+write.file = 'seg_ForecastLog_completeTS_simplexEDM.txt'
+file.create(write.file)
+
+complete.simplex.forecasts <- mclapply(complete.ts.dd.seg.bottle, function(dd.bottle){
+  
+  bot <- unique(dd.bottle$bottle)
+  
+  bottle_specs <- dd.bottle %>%
+    summarize(bottle = unique(bottle),
+              richness = unique(richness),
+              composition = unique(composition),
+              incubator = unique(incubator),
+              realized_richness = unique(realized_richness),
+              mean_richness = unique(mean_richness), 
+              median_richness = unique(median_richness),
+              light_treatment = unique(light_treatment))
+  
+  ### Log file
+  write(paste0("Bottle: ", bot, " started at: ", Sys.time(), "\n"), write.file, append = T)
+  bot.start.time <- Sys.time()
+  
+  ### Bottle specific preparations
+  dd.bottle <- dd.bottle[,colSums(is.na(dd.bottle))<nrow(dd.bottle)] %>%
+    ungroup()
+  
+  targets <- dd_list$densities.int.detrend.complete
+  targets <- unlist(unique(targets[targets$bottle==bot & targets$ForecastTarget==T, "species"]))
+  targets <- c(targets, additional_targets)
+  targets <- gsub(" ", "_", targets)
+  targets <- unname(targets)
+  
+  percent <- 0.9
+  lib <- c(1, ceiling(percent*nrow(dd.bottle)))
+  pred <- c(ceiling(percent*nrow(dd.bottle))+1, nrow(dd.bottle))
+  
+  df <- lapply(targets, function(target){
+    ddtarget <- dd.bottle[,c("day",target)]
+    E <- UniSimplex_determineE(ddtarget, target, maxE = 40, lib, pred)
+    forecast <- Simplex(dataFrame = ddtarget, lib = lib, 
+                        pred = pred, target = target,
+                        columns = target, E = E)
+    rmse <- sqrt(mean((forecast$Observations-forecast$Predictions)^2, na.rm = T))
+    ddrmse <- data.frame(Target=target, RMSE=rmse, E=E)
+    ddrmse
+  })
+  
+  df <- do.call("rbind", df)
+  df$bottle <- bot
+  df <- full_join(bottle_specs,df)
+  
+  ### Log file
+  elapsed <- Sys.time() - bot.start.time
+  elapsed <- paste(round(elapsed,2), attr(elapsed, "units"))
+  write(paste0("Bottle: ", bot, " ended at: ", Sys.time(), "; Elapsed time: ", elapsed, "\n"), write.file, append = T)
+  
+  ## return 
+  df
+  
+}, mc.cores = 1)
+
+complete.simplex.forecasts <- purrr::reduce(complete.simplex.forecasts, dplyr::full_join)
+
+saveRDS(complete.simplex.forecasts, file = here("Data/3_ForecastsResults/2_SegmentedAnalysis/complete.simplex.forecasts.RDS"))
+```
+
+
+### ARIMA
+
+```{r seg_arima_forecast_complete, message=FALSE, warning=FALSE, cache=FALSE, eval=FALSE}
+set.seed(1231)
+
+### Log file
+write.file = 'seg_ForecastLog_completeTS_ARIMA.txt'
+file.create(write.file)
+
+complete.arima.forecasts <- mclapply(complete.ts.dd.seg.bottle, function(dd.bottle){
+  
+  bot <- unique(dd.bottle$bottle)
+  bottle_specs <- dd.bottle %>%
+    summarize(bottle = unique(bottle),
+              richness = unique(richness),
+              composition = unique(composition),
+              incubator = unique(incubator),
+              realized_richness = unique(realized_richness),
+              mean_richness = unique(mean_richness), 
+              median_richness = unique(median_richness),
+              light_treatment = unique(light_treatment))
+  
+  ### Log file
+  write(paste0("Bottle: ", bot, " started at: ", Sys.time(), "\n"), write.file, append = T)
+  bot.start.time <- Sys.time()
+  
+  ### Bottle specific preparations
+  dd.bottle <- dd.bottle[,colSums(is.na(dd.bottle))<nrow(dd.bottle)] %>%
+    ungroup()
+  
+  targets <- dd_list$densities.int.detrend.complete
+  targets <- unlist(unique(targets[targets$bottle==bot & targets$ForecastTarget==T, "species"]))
+  targets <- c(targets, additional_targets)
+  targets <- gsub(" ", "_", targets)
+  targets <- unname(targets)
+  
+  idx <- which(colnames(dd.bottle) %in% all_possible_predictors)
+  possible_predictors <- unique(c(targets, colnames(dd.bottle)[idx]))
+  possible_predictors <- possible_predictors[!(possible_predictors %in% c("Didinium_nasutum","Debris",
+                                                                          "Digested_algae","Small_unidentified",
+                                                                          "Algae"))]
+  covariates <- gsub(" ", "_", possible_predictors)
+  
+  percent <- 0.9
+  lib <- 1:ceiling(percent*nrow(dd.bottle))
+  pred <- (ceiling(percent*nrow(dd.bottle))+1):nrow(dd.bottle)
+  b.train <- dd.bottle[lib,]
+  b.forecast <- dd.bottle[pred,] 
+  
+  ### Forecasting
+  
+  df <- lapply(targets, function(target){
+    
+    idx <- which(target==covariates)
+    predictors <- covariates[-idx]
+    m <- auto.arima(b.train[target],max.p=10,max.q=10,max.d=3, max.order = 15) #d=0, xreg = as.matrix(b.train[,predictors])
+    # checkresiduals(m)
+    forecast <- fitted(Arima(unlist(dd.bottle[,target]),model=m))[pred] #xreg = as.matrix(dd.bottle[,predictors])
+    
+    rmse <- sqrt(mean((unlist(b.forecast[target])-forecast)^2, na.rm = T))
+    
+    data.frame(Target=target, RMSE=rmse)
+  })
+  
+  df <- do.call("rbind", df)
+  df$bottle <- bot
+  df <- full_join(bottle_specs,df)
+  
+  ### Log file
+  elapsed <- Sys.time() - bot.start.time
+  elapsed <- paste(round(elapsed,2), attr(elapsed, "units"))
+  write(paste0("Bottle: ", bot, " ended at: ", Sys.time(), "; Elapsed time: ", elapsed, "\n"), write.file, append = T)
+  
+  ## return 
+  df
+  
+}, mc.cores = detectCores()-2) 
+
+complete.arima.forecasts <- purrr::reduce(complete.arima.forecasts, dplyr::full_join)
+
+saveRDS(complete.arima.forecasts, file = here("Data/3_ForecastsResults/2_SegmentedAnalysis/complete.arima.forecasts.RDS"))
+```
+
+### Recurrent neural networks
+
+```{r seg_RNN_forecast_complete, message=FALSE, warning=FALSE, cache=FALSE, eval=FALSE}
+virtualenv_create("myenv")
+use_virtualenv("myenv")
+# set some parameters for our model
+batch_size <- 64 # number of sequences to look at at one time during training
+total_epochs <- 30 # how many times we'll look @ the whole dataset while training our model
+
+set.seed(1231)
+
+### Log file
+write.file = 'seg_ForecastLog_completeTS_RNN.txt'
+file.create(write.file)
+
+complete.rnn.forecasts <- mclapply(complete.ts.dd.seg.bottle, function(dd.bottle){
+  
+  bot <- unique(dd.bottle$bottle)
+  
+  bottle_specs <- dd.bottle %>%
+    summarize(bottle = unique(bottle),
+              richness = unique(richness),
+              composition = unique(composition),
+              incubator = unique(incubator),
+              realized_richness = unique(realized_richness),
+              mean_richness = unique(mean_richness), 
+              median_richness = unique(median_richness),
+              light_treatment = unique(light_treatment))
+  
+  ### Log file
+  write(paste0("Bottle: ", bot, " started at: ", Sys.time(), "\n"), write.file, append = T)
+  bot.start.time <- Sys.time()
+  
+  ### Bottle specific preparations
+  dd.bottle <- dd.bottle[,colSums(is.na(dd.bottle))<nrow(dd.bottle)] %>%
+    ungroup()
+  
+  targets <- dd_list$densities.int.detrend.complete
+  targets <- unlist(unique(targets[targets$bottle==bot & targets$ForecastTarget==T, "species"]))
+  targets <- c(targets, additional_targets)
+  targets <- gsub(" ", "_", targets)
+  targets <- unname(targets)
+  
+  idx <- which(colnames(dd.bottle) %in% all_possible_predictors)
+  possible_predictors <- unique(c(targets, colnames(dd.bottle)[idx]))
+  possible_predictors <- possible_predictors[!(possible_predictors %in% c("Didinium_nasutum","Debris",
+                                                                          "Digested_algae","Small_unidentified",
+                                                                          "Algae"))]
+  possible_predictors <- gsub(" ", "_", possible_predictors)
+  
+  percent <- 0.9
+  lib <- 1:ceiling(percent*nrow(dd.bottle))
+  pred <- (ceiling(percent*nrow(dd.bottle))+1):nrow(dd.bottle)
+  X_train <- as.matrix(dd.bottle[lib[-length(lib)], possible_predictors])
+  X_test <- as.matrix(dd.bottle[pred[-length(pred)], possible_predictors])
+  
+  df <- lapply(targets, function(target){
+    
+    y_train <- as.matrix(dd.bottle[lib[-1], target])
+    y_test <- as.matrix(dd.bottle[pred[-1], target])
+    
+    # initialize our model
+    # install_keras()
+    model <- keras_model_sequential() %>%
+      layer_dense(units = 7, activation = 'relu', input_shape = length(possible_predictors), 
+                  kernel_initializer=initializer_random_uniform(seed = 43)) %>% 
+      layer_dense(units = 49, activation = 'relu',
+                  kernel_initializer=initializer_random_uniform(seed = 23)) %>%
+      layer_dense(units = 1, activation = 'linear',
+                  kernel_initializer=initializer_random_uniform(seed = 55))
+    
+    model %>% compile(
+      loss = 'mean_squared_error',
+      optimizer = 'adam',
+      metrics = c('mae')
+    )
+    
+    # Actually train our model! This step will take a while
+    trained_model <- model %>% fit(
+      x = X_train, # sequence we're using for prediction 
+      y = y_train, # sequence we're predicting
+      batch_size = batch_size, # how many samples to pass to our model at a time
+      epochs = total_epochs, # how many times we'll look @ the whole dataset
+      verbose=0,
+      validation_split = 0.1) # how much data to hold out for testing as we go along
+    
+    forecast <- data.frame(y = predict(model, x=X_test))
+    
+    rmse <- sqrt(mean(unlist(y_test-forecast)^2, na.rm = T))
+    
+    data.frame(Target=target, RMSE=rmse)
+  })
+  
+  df <- do.call("rbind", df)
+  df$bottle <- bot
+  df <- full_join(bottle_specs,df)
+  
+  ### Log file
+  elapsed <- Sys.time() - bot.start.time
+  elapsed <- paste(round(elapsed,2), attr(elapsed, "units"))
+  write(paste0("Bottle: ", bot, " ended at: ", Sys.time(), "; Elapsed time: ", elapsed, "\n"), write.file, append = T)
+  
+  ## return 
+  df
+}, mc.cores=detectCores()-2)
+
+complete.rnn.forecasts <- purrr::reduce(complete.rnn.forecasts, dplyr::full_join)
+saveRDS(complete.rnn.forecasts, file = here("Data/3_ForecastsResults/2_SegmentedAnalysis/complete.rnn.forecasts.RDS"))
+```
+
+
+### Random forest
+
+```{r seg_RF_forecast_complete, message=FALSE, warning=FALSE, cache=FALSE, eval=FALSE}
+set.seed(1231)
+
+max_lag = 4
+steps_ahead = 1
+
+### Log file
+write.file = 'seg_ForecastLog_completeTS_RF.txt'
+file.create(write.file)
+
+complete.rf.forecasts <- mclapply(complete.ts.dd.seg.bottle, function(dd.bottle){
+  
+  bot <- unique(dd.bottle$bottle)
+  
+  bottle_specs <- dd.bottle %>%
+    summarize(bottle = unique(bottle),
+              richness = unique(richness),
+              composition = unique(composition),
+              incubator = unique(incubator),
+              realized_richness = unique(realized_richness),
+              mean_richness = unique(mean_richness), 
+              median_richness = unique(median_richness),
+              light_treatment = unique(light_treatment))
+  
+  ### Log file
+  write(paste0("Bottle: ", bot, " started at: ", Sys.time(), "\n"), write.file, append = T)
+  bot.start.time <- Sys.time()
+  
+  ### Bottle specific preparations
+  dd.bottle <- dd.bottle[,colSums(is.na(dd.bottle))<nrow(dd.bottle)] %>%
+    ungroup()
+  
+  targets <- dd_list$densities.int.detrend.complete
+  targets <- unlist(unique(targets[targets$bottle==bot & targets$ForecastTarget==T, "species"]))
+  targets <- c(targets, additional_targets)
+  targets <- gsub(" ", "_", targets)
+  targets <- unname(targets)
+  
+  idx <- which(colnames(dd.bottle) %in% all_possible_predictors)
+  possible_predictors <- unique(c(targets, colnames(dd.bottle)[idx]))
+  possible_predictors <- possible_predictors[!(possible_predictors %in% c("Didinium_nasutum","Debris",
+                                                                          "Digested_algae","Small_unidentified",
+                                                                          "Algae"))]
+  possible_predictors <- gsub(" ", "_", possible_predictors)
+  
+  percent <- 0.9
+  lib <- 1:ceiling(percent*nrow(dd.bottle))
+  pred <- (ceiling(percent*nrow(dd.bottle))+1):nrow(dd.bottle)
+  pred <- pred - max_lag
+  lib <- lib - max_lag
+  lib <- lib[lib>0]
+  pred <- pred[pred>0]
+
+  df <- lapply(targets, function(target){
+    
+    df.emb <- dd.bottle[,target]
+    for(l in 1:max_lag){
+      predictor.lag <- lag(dd.bottle, steps_ahead + l - 1)
+      colnames(predictor.lag) <- paste0(colnames(predictor.lag), "_", l)
+      df.emb <- cbind(df.emb, predictor.lag)
+    }
+    df.emb <- df.emb %>% na.omit()
+    
+    # split into training and test data, then forecast
+    
+    test <- df.emb[pred,]
+    train <- df.emb[lib,]
+    
+    y_train <- train[, 1] # the target
+    X_train <- train[, -1] # everything but the target
+    
+    y_test <- test[, 1] # the target
+    X_test <- test[, -1] # everything but the target
+    
+    # fit the model
+    fit_rf <- randomForest(X_train, y_train)
+    
+    # predict using the test set
+    p <- predict(fit_rf, X_test)
+    forecasts_rf <- data.frame(observed=y_test,
+                               predicted=p)
+    
+    rmse <- sqrt(mean((forecasts_rf$observed-forecasts_rf$predicted)^2, na.rm = T))
+    
+    data.frame(Target=target, RMSE=rmse)
+  })
+  
+  df <- do.call("rbind", df)
+  df$bottle <- bot
+  df <- full_join(bottle_specs,df)
+  
+  ### Log file
+  elapsed <- Sys.time() - bot.start.time
+  elapsed <- paste(round(elapsed,2), attr(elapsed, "units"))
+  write(paste0("Bottle: ", bot, " ended at: ", Sys.time(), "; Elapsed time: ", elapsed, "\n"), write.file, append = T)
+  
+  ## return 
+  df
+}, mc.cores=detectCores()-2)
+
+complete.rf.forecasts <- purrr::reduce(complete.rf.forecasts, dplyr::full_join)
+saveRDS(complete.rf.forecasts, file = here("Data/3_ForecastsResults/2_SegmentedAnalysis/complete.rf.forecasts.RDS"))
+```
+
+
+## Post-forecasting data wrangling 
+
+```{r forecast_post_processing, message=FALSE, warning=FALSE}
+# based on segmented regression detrending
+
+complete.arima.forecasts <- readRDS(here("Data/3_ForecastsResults/2_SegmentedAnalysis/complete.arima.forecasts.RDS"))
+complete.multiview.forecasts <- readRDS(here("Data/3_ForecastsResults/2_SegmentedAnalysis/complete.multiview.forecasts.RDS"))
+complete.rnn.forecasts <- readRDS(here("Data/3_ForecastsResults/2_SegmentedAnalysis/complete.rnn.forecasts.RDS"))
+complete.simplex.forecasts <- readRDS(here("Data/3_ForecastsResults/2_SegmentedAnalysis/complete.simplex.forecasts.RDS"))
+complete.rf.forecasts <- readRDS(here("Data/3_ForecastsResults/2_SegmentedAnalysis/complete.rf.forecasts.RDS"))
+
+complete.arima.forecasts$forecast.method <- "ARIMA"
+complete.multiview.forecasts$forecast.method <- "Multiview EDM"
+complete.rnn.forecasts$forecast.method <- "RNN"
+complete.simplex.forecasts$forecast.method <- "Simplex EDM"
+complete.rf.forecasts$forecast.method <- "Random Forest"
+
+
+seg.complete.forecasts <- purrr::reduce(list(complete.arima.forecasts,
+                                             complete.multiview.forecasts,
+                                             complete.rnn.forecasts,
+                                             complete.simplex.forecasts,
+                                             complete.rf.forecasts), 
+                                        dplyr::full_join)
+
+# based on simple temporal regression detrending
+
+complete.arima.forecasts <- readRDS(here("Data/3_ForecastsResults/1_DetrendedLinearly/complete.arima.forecasts.RDS"))
+complete.multiview.forecasts <- readRDS(here("Data/3_ForecastsResults/1_DetrendedLinearly/complete.multiview.forecasts.RDS"))
+complete.rnn.forecasts <- readRDS(here("Data/3_ForecastsResults/1_DetrendedLinearly/complete.rnn.forecasts.RDS"))
+complete.simplex.forecasts <- readRDS(here("Data/3_ForecastsResults/1_DetrendedLinearly/complete.simplex.forecasts.RDS"))
+complete.rf.forecasts <- readRDS(here("Data/3_ForecastsResults/1_DetrendedLinearly/complete.rf.forecasts.RDS"))
+
+complete.arima.forecasts$forecast.method <- "ARIMA"
+complete.multiview.forecasts$forecast.method <- "Multiview EDM"
+complete.rnn.forecasts$forecast.method <- "RNN"
+complete.simplex.forecasts$forecast.method <- "Simplex EDM"
+complete.rf.forecasts$forecast.method <- "Random Forest"
+
+complete.forecasts <- purrr::reduce(list(complete.arima.forecasts,
+                                         complete.multiview.forecasts,
+                                         complete.rnn.forecasts,
+                                         complete.rf.forecasts,
+                                         complete.simplex.forecasts), 
+                                    dplyr::full_join)
+```
+
+
+# Calculation of temporal stability and permutation entropy
+
+```{r complete.CV.calc, message=FALSE, warning=FALSE, cache=FALSE}
+biomass.complete.pe.cv <- dd_list$biomass.int.detrend.complete %>%
+  group_by(bottle, composition, richness, incubator, light_treatment, realized_richness, mean_richness, median_richness) %>%
+  summarize(biomass.pe.5 = PE(x = biomass, weighted = T, word_length = 5, tau = 1,
+                              tie_method = "noise", noise_amount = 10),
+            biomass.cv.res = sd(biomass.detrended.unstandardized, na.rm=T)/mean(biomass.original, na.rm=T),
+            biomass.acf_lag5 = stats::acf(biomass, lag.max=5, plot=F, na.action = na.pass)$acf[6])
+
+density.complete.pe.cv <- dd_list$densities.int.detrend.complete %>%
+  group_by(species, bottle, composition, ForecastTarget, richness, incubator, method, light_treatment, realized_richness, mean_richness, median_richness) %>%
+  summarize(density.pe.5 = PE(x = density, weighted = T, word_length = 5, tau = 1,
+                              tie_method = "noise", noise_amount = 10),
+            biomass.pe.5 = ifelse(all(is.na(biomass)), NA, PE(x = biomass, weighted = T, word_length = 5, tau = 1,
+                                                              tie_method = "noise", noise_amount = 10)),
+            biomass.cv.res = sd(biomass.detrended.unstandardized, na.rm=T)/mean(biomass.original, na.rm=T),
+            density.cv.res = sd(density.detrended.unstandardized, na.rm=T)/mean(density.original, na.rm=T),
+            biomass.acf_lag5 = stats::acf(biomass, lag.max=5, plot=F, na.action = na.pass)$acf[6],
+            density.acf_lag5 = stats::acf(density, lag.max=5, plot=F, na.action = na.pass)$acf[6])
+
+o2.complete.pe.cv <- dd_list$o2.int.detrend.complete %>%
+  group_by(bottle, composition, light_treatment, richness, realized_richness, mean_richness, median_richness) %>%
+  summarize(percent_o2.pe.5 = PE(x = percent_o2, weighted = T, word_length = 5, tau = 1,
+                                 tie_method = "noise", noise_amount = 10),
+            percent_o2.cv.res = sd(percent_o2.detrended.unstandardized, na.rm=T)/mean(percent_o2.original, na.rm=T),
+            percent_o2.acf_lag5 = stats::acf(percent_o2, lag.max=5, plot=F, na.action = na.pass)$acf[6])
+
+water_chem.complete.pe.cv <- dd_list$water_chem.int.detrend.complete %>%
+  group_by(type, bottle, composition, light_treatment, richness, realized_richness, mean_richness, median_richness) %>%
+  summarize(concentration.pe.5 = PE(x = concentration, weighted = T, word_length = 5, tau = 1,
+                                    tie_method = "noise", noise_amount = 10),
+            concentration.cv.res = sd(concentration.detrended.unstandardized, na.rm=T)/mean(concentration.original, na.rm=T),
+            concentration.acf_lag5 = stats::acf(concentration, lag.max=5, plot=F, na.action = na.pass)$acf[6])
+```
+
+
+## Addition to forecast results
+
+```{r mergeForecastsandTSMetrics, warning=FALSE, message=FALSE}
+complete.forecasts <- complete.forecasts %>%
+  group_by(forecast.method) %>%
+  mutate(realized_richness_center = realized_richness - round(mean(realized_richness)),
+         median_richness_center = median_richness - (median(median_richness)),
+         mean_richness_center = mean_richness - (mean(mean_richness)))
+
+seg.complete.forecasts <- seg.complete.forecasts %>%
+  group_by(forecast.method) %>%
+  mutate(realized_richness_center = realized_richness - round(mean(realized_richness)),
+         median_richness_center = median_richness - (median(median_richness)),
+         mean_richness_center = mean_richness - (mean(mean_richness)))
+
+
+complete.forecasts.pe.cv <- full_join(complete.forecasts %>%
+                                        dplyr::filter(Target == "Total_biomass"),
+                                      biomass.complete.pe.cv %>%
+                                        mutate(Target = "Total_biomass") %>%
+                                        rename(cv.res=biomass.cv.res,
+                                               acf_lag5 = biomass.acf_lag5,
+                                               pe5=biomass.pe.5))
+
+complete.forecasts.pe.cv2 <- full_join(complete.forecasts %>%
+                                         dplyr::filter(Target != "Total_biomass",Target != "Mean_oxygen"),
+                                       density.complete.pe.cv %>%
+                                         ungroup() %>%
+                                         mutate(Target=gsub(" ", "_", species)) %>%
+                                         dplyr::select(-biomass.pe.5, -biomass.cv.res, -biomass.acf_lag5,
+                                                       -species, -method, -ForecastTarget) %>%
+                                         rename(cv.res=density.cv.res,
+                                                acf_lag5 = density.acf_lag5,
+                                                pe5=density.pe.5)) %>%
+  drop_na(RMSE)
+
+complete.forecasts.pe.cv3 <- full_join(complete.forecasts %>%
+                                         dplyr::filter(Target == "Mean_oxygen"),
+                                       o2.complete.pe.cv %>%
+                                         mutate(Target = "Mean_oxygen") %>%
+                                         rename(cv.res=percent_o2.cv.res,
+                                                acf_lag5 = percent_o2.acf_lag5,
+                                                pe5=percent_o2.pe.5))
+
+complete.forecasts.pe.cv <- rbind(complete.forecasts.pe.cv,
+                                  complete.forecasts.pe.cv2,
+                                  complete.forecasts.pe.cv3)
+
+complete.forecasts <- complete.forecasts.pe.cv %>%
+  dplyr::select("bottle","richness","composition","incubator","realized_richness",
+                "light_treatment","Target", "RMSE","forecast.method",
+                "mean_richness","median_richness","realized_richness_center",
+                "median_richness_center","mean_richness_center","pe5",
+                "cv.res","acf_lag5") %>%
+  mutate(cv.res.log10 = log10(cv.res))
+
+seg.complete.forecasts <- seg.complete.forecasts %>%
+  dplyr::select("bottle","richness","composition","incubator","realized_richness",
+                "light_treatment","Target", "RMSE","forecast.method",
+                "mean_richness","median_richness","realized_richness_center",
+                "median_richness_center","mean_richness_center")
+```
+
+
+# Saving merged and processed results
+
+```{r}
+save(complete.forecasts, 
+     file = here("Data/3_ForecastsResults/3_MergedResults/complete.forecasts.RData"))
+save(seg.complete.forecasts, 
+     file = here("Data/3_ForecastsResults/3_MergedResults/seg.complete.forecasts.RData"))
+``` 
+
