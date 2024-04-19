@@ -1,4 +1,7 @@
-
+# Zurich, April 19, 2024
+# This file contains the code for the permutation entropy calculations
+# The original code writes is Frank Pennekamp for
+# "The intrinsic predictability of ecological time series and its potential to guide forecasting" Ecological Monographs 2019
 
 #' Check time series for some important features
 #'

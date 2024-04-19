@@ -1,3 +1,6 @@
+# Zurich, April 19, 2024
+# This file contains some functions needed for EDM forecasting
+# Uriah Daugaard
 
 # wrapper function for the Multiview function
 

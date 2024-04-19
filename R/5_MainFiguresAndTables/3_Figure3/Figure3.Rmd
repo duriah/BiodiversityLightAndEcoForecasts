@@ -1,5 +1,6 @@
 ---
 title: "Figure 3"
+author: "Romana Limberger, Uriah Daugaard et al."
 linestretch: 1.5
 fontsize: 10pt
 output: 

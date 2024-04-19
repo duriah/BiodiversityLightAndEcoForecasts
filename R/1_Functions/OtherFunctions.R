@@ -1,3 +1,7 @@
+# Zurich, April 19, 2024
+# This file contains various useful functions used in the analysis
+# Uriah Daugaard
+
 #### Functions regarding regressions #### 
 
 # Function to check model assumtopns of a lme4 mixed model
