@@ -412,8 +412,17 @@ flowcam.selection.wide <-
   read.csv(here("Data/1_ExperimentDesignInfo/FlowCamFiltering.csv"))
 
 flowcam.selection.wide %>%
-  # mutate(filtered = ifelse(filtered==0,0.1,filtered),
-  #        unfiltered = ifelse(filtered==0,0.1,unfiltered)) %>%
+  mutate(species = case_when(species == "Chlamydomonas" ~ "Chlamydomonas reinhardtii",
+                             species == "ChlamydomonasClumps" ~ "Chlamydomonas clumps",
+                             species == "Cosmarium" ~ "Cosmarium botrytis",
+                             species == "Debris" ~ "Debris",
+                             species == "Desmodesmus" ~ "Desmodesmus armatus",
+                             species == "DesmodesmusClumps" ~ "Digested algae",
+                             species == "DigestedAlgae" ~ "Digested algae",
+                             species == "DividingChlamydomonas" ~ "Dividing Chlamydomonas",
+                             species == "Monoraphidium" ~ "Monoraphidium obtusum",
+                             species == "Staurastrum1" ~ "Staurastrum gracile",
+                             species == "Staurastrum2" ~ "Staurastrum polytrichum")) %>%
   ggplot(aes(unfiltered, filtered, col = species)) +
   geom_point(alpha = 0.7) +
   geom_abline(intercept = log10(1), slope = 1) +
@@ -853,7 +862,7 @@ dd_list$water_chem %>%
         ) +
   scale_color_brewer(palette = "Dark2") +
   labs(col="", 
-       y = "Concentration (%)",
+       y = expression(paste("Concentration (", mg~L^{-1},")")),
        x = "Sampling day") 
 ```
 
