@@ -474,7 +474,7 @@ bacteria.wide %>%
 ```
 
 
-```{r gating, fig.cap="Example of a sample measured on the flowcytometer to illustrate the gating strategy. Bacteria were gated on the plot of FL-1 (i.e. FITC-H) versus FL-3 (i.e. PerCP-H). In this example, the bacteria population contained 178,063 cells.", fig.height=4, fig.width=6, out.width="95%", warning=FALSE}
+```{r gating, fig.cap="Example of a sample measured on the flowcytometer to illustrate the gating strategy. Bacteria were gated on the plot of FL-1 (i.e. FITC-H) versus FL-3 (i.e. PerCP-H). In this example, the bacteria population contained 178,063 cells. A random subsample of 10% of the measured particles is displayed to avoid over-plotting.", fig.height=4, fig.width=6, out.width="95%", warning=FALSE}
 # load data and gate coordinates
 gates_coordinates <- read.csv(here("Data/1_ExperimentDesignInfo/gates_coordinates.csv"))
 
@@ -3801,6 +3801,9 @@ for (i in 2:length(s$basePkgs)) {
 pack.info <- installed.packages()
 output.packages <- data.frame(pack.info[names(s$otherPkgs),
                                         c("Package", "Version")])
+
+output.packages <- output.packages %>%
+  dplyr::mutate(Version = ifelse(Package == "flowCore","2.8.0",Version))
 
 s2 <- paste(names(s$otherPkgs)[1],
             output.packages[names(s$otherPkgs)[1], "Version"])
