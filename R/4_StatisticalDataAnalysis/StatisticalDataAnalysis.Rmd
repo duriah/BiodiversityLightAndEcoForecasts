@@ -53,6 +53,10 @@ library(lmerTest)
 library(ggh4x)
 library(GGally) 
 library(broom.mixed) 
+library(flowCore)
+library(flowViz)
+library(bemovi)
+library(LEEF.measurement.bemovi)
 library(survey) 
 library(lavaan) 
 library(lavaan.survey)
@@ -467,6 +471,27 @@ bacteria.wide %>%
   theme_bw() +
   scale_x_log10() +
   scale_y_log10()
+```
+
+
+```{r gating, fig.cap="Example of a sample measured on the flowcytometer to illustrate the gating strategy. Bacteria were gated on the plot of FL-1 (i.e. FITC-H) versus FL-3 (i.e. PerCP-H). In this example, the bacteria population contained 178,063 cells.", fig.height=4, fig.width=6, out.width="95%", warning=FALSE}
+# load data and gate coordinates
+gates_coordinates <- read.csv(here("Data/1_ExperimentDesignInfo/gates_coordinates.csv"))
+
+# load the example sample data
+flowFrame <- readRDS(here("Data/1_ExperimentDesignInfo/flowFrame.rds"))
+flow_df <- flowFrame@exprs
+set.seed(435)
+idx <- sample(1:nrow(flow_df), size = round(0.1*nrow(flow_df)), replace = F)
+flowFrame@exprs <- flow_df[idx,]
+
+# Apply gate
+polyGate_bacteria <- as.matrix(gates_coordinates[1:4, 1:2])
+colnames(polyGate_bacteria) <- c("FL1-H", "FL3-H")
+bacteria_gate <- flowCore::polygonGate(filterId = "Bacteria", .gate = polyGate_bacteria)
+
+# plot the gate for one sample:
+flowViz::xyplot(`FL3-H` ~ `FL1-H`, data = flowFrame, filter = bacteria_gate, smooth=FALSE, xlab="log10(FITC-H)", ylab="log10(PerCP-H)")
 ```
 
 
