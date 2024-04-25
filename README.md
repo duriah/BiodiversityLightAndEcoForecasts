@@ -1,7 +1,10 @@
 # BiodiversityLightAndEcoForecasts
 This is the repository to the article "Biodiversity increases the forecastability of species abundances in changing environments".
 
-[![DOI](https://zenodo.org/badge/785277457.svg)](https://zenodo.org/doi/10.5281/zenodo.10997226)
+
+
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.11067497.svg)](https://doi.org/10.5281/zenodo.11067497)
+
 
 
 The two main directories are the following (more information is given within them):
