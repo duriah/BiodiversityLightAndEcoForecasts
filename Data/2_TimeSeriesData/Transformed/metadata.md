@@ -1,0 +1,72 @@
+# Data information
+
+- `DensityBiomassTimeSeries.RDS`: a RDS file containing an R list which itself contains several data sets. For convenience it contains both the following transformed and the untransformed time series:
+    - `biomass` and `biomass.int.detrend.complete` respectively contain the untransformed and the transformed time series of the total (i.e. community) biomass. Each row is a sample (bottle and sampling day specific).
+    - `densities` and `densities.int.detrend.complete` respectively contain the untransformed and the transformed time series of the taxa densities and biomasses Each row is a sample  (bottle, species, and sampling day specific).
+    - `o2` and `o2.int.detrend.complete` respectively contain the untransformed and the transformed oxygen time series (oxygen concentration average over the two sensors). Each row is a sample  (bottle and sampling day specific).
+    - `water_chem` and `water_chem.int.detrend.complete` respectively contain the untransformed and the transformed time series of the water chemistry (DC: Dissolved Carbon; DN: Dissolved Nitrogen; DOC: Dissolved Organic Carbon; IC: Inorganic Carbon) Each row is a sample  (bottle, water chemistry, and sampling day specific).
+    - **Note**: `int.detrend.complete` indicates that it contains the respective transformed time series (interpolated, detrended and standardized over the whole duration of the time series)
+    - **Units**: the transformed time are standardized and therefore unitless. Regarding the untransformed time series: 
+      - **Density**: individuals per ml
+      - **Biomass**: grams per ml
+      - **Carbon** and Nitrogen: mg per L
+      - **Oxygen**: percent concentration
+
+  - Variables in the datasets:
+    - `timestamp`: timestamp of sampling day, format: yyyymmdd
+    - `day`: days since start of experiment (starts at 0)
+    - `bottle`: name of the bottle sampled
+    - `light_treatment`: light conditions applied (constant or decreasing)
+    - `richness`: the planned richness (number of species)
+    - `composition`: the name of the community composition
+    - `incubator`: the name of the incubator in which the bottle was stored
+    - `biomass`: the estimated biomass of the respective sample. In the datasets `biomass.int.detrend.complete` and `densities.int.detrend.complete` this variable contains the *transformed* time series, in other datasets it appears in the data is *untransformed*.
+    - `realized_richness`: the minimally observed species richness over the whole experiment per bottle (number of species)
+    - `light`: light intensity (in percent)
+    - `light_phase`: variable indicating in which phase of the light change the sample was taken. Level: *constant* (i.e. a bottle that remained at 30 throughout the experiment), *constant before decrease*, *decreasing* and *constant after decrease*
+    - `day_richness`: the number of species present in the given sample on the given sampling day. Species were counted if they were present at a density of at least 10 (videos) and 100 (flowcam) individuals per ml.
+    - `mean_richness`: the mean species richness over the whole experiment per bottle (mean number of species) 
+    - `median_richness`: the median species richness over the whole experiment per bottle (median number of species) 
+    - `biomass.original`: the estimated *untransformed* biomass of the respective sample.
+    - `biomass.seg`: the estimated *transformed* biomass of the respective sample, using segmented regression for the detrending.
+    - `biomass.detrended.unstandardized`: estimated *detrended but not standardized* biomass of the respective sample
+    - `biomass.seg.detrended.unstandardized`: estimated *detrended but not standardized* biomass of the respective sample, using segmented regression for the detrending.
+    - `species`: the taxa which was sampled. Levels: *Algae*, *Bacteria*, *Chlamydomonas clumps*, *Chlamydomonas reinhardtii*, *Coleps sp.*, *Cosmarium botrytis*, *Debris*, *Desmodesmus armatus*, *Desmodesmus clumps*, *Didinium nasutum*, *Digested algae*, *Dividing Chlamydomonas*, *Paramecium bursaria*, *Paramecium caudatum*, *Small cells*, *Small unidentified*, *Staurastrum gracile*, *Colpidium vacuoles*, *Monoraphidium obtusum*, *Staurastrum polytrichum*, *Stylonychia sp.*, *Colpidium striatum*, *Dexiostoma campylum*, *Euplotes daidaleos*, *Loxocephalus sp.*   
+    - `method`: the method with which the data was collected. Levels: *Flowcytometer*, *FlowCam*, *Video*, *Manual count*                      
+    - `density`: the estimated density of the respective sample. In the dataset `densities.int.detrend.complete` this variable contains the *transformed* time series, in other datasets it appears in the data is *untransformed*.
+    - `ForecastTarget`: boolean variable indicating whether a specific taxa in a specific bottle was forecasted or not
+    - `density.original`: the estimated *untransformed* density of the respective sample.
+    - `density.seg`: the estimated *transformed* density of the respective sample, using segmented regression for the detrending.
+    - `density.detrended.unstandardized`: estimated *detrended but not standardized* density of the respective sample
+    - `density.seg.detrended.unstandardized`: estimated *detrended but not standardized* density of the respective sample, using segmented regression for the detrending.
+    - `percent_o2`: the estimated oxygen concentration of the respective sample. In the dataset `o2.int.detrend.complete` this variable contains the *transformed* time series, in other datasets it appears in the data is *untransformed*.
+    - `percent_o2.original`: the estimated *untransformed* oxygen concentration of the respective sample.
+    - `percent_o2.seg`: the estimated *transformed* oxygen concentration of the respective sample, using segmented regression for the detrending.
+    - `percent_o2.detrended.unstandardized`: estimated *detrended but not standardized* oxygen concentration of the respective sample 
+    - `percent_o2.seg.detrended.unstandardized`: estimated *detrended but not standardized* oxygen concentration of the respective sample, using segmented regression for the detrending.
+    - `type`: the water chemistry measured. Levels: *IC*,  *TC* (i.e. DC),  *TN* (i.e. DN),  *TOC* (i.e. DOC).
+    - `concentration`: the estimated water chemistry type concentration of the respective sample. In the dataset `water_chem.int.detrend.complete` this variable contains the *transformed* time series, in other datasets it appears in the data is *untransformed*.
+    - `cv`: nonsensical (leftover) variable, ignore.
+    - `n`: nonsensical (leftover) variable, ignore.
+    - `concentration.original`: the estimated *untransformed* water chemistry type concentration of the respective sample.
+    - `concentration.seg`: the estimated *transformed* water chemistry type concentration of the respective sample, using segmented regression for the detrending.
+    - `concentration.detrended.unstandardized`: estimated *detrended but not standardized* water chemistry type concentration of the respective sample 
+    - `concentration.seg.detrended.unstandardized`: estimated *detrended but not standardized* water chemistry type concentration of the respective sample, using segmented regression for the detrending.
+  
+  
+- `OxygenBothSensors`: interpolated oxygen time series for both sensors used (for convenience for later plotting). Oxygen concentration is given in percent. Each row is a sample (bottle, sensors and sampling day specific).
+  - Variables:
+    - `timestamp`: timestamp of sampling day, format: yyyymmdd
+    - `day`: days since start of experiment (starts at 0)
+    - `bottle`: name of the bottle sampled
+    - `sensor`: which sensor was measured. Levels: *4* and *9*.
+    - `temperature_actual`: nonsensical (leftover) variable, ignore.
+    - `percent_o2`: the estimated *untransformed* oxygen concentration of the respective sample.
+    - `measurement`: Variable indicating method used to measure. Level: *o2meter*
+    - `light_treatment`: light conditions applied (constant or decreasing)
+    - `richness`: the planned richness (number of species)          
+    - `composition`: the name of the community composition
+    - `incubator`: the name of the incubator in which the bottle was stored
+    - `realized_richness`: the minimally observed species richness over the whole experiment per bottle (number of species)   
+  
+

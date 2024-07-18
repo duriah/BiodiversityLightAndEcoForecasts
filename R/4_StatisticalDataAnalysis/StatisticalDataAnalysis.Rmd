@@ -3783,6 +3783,230 @@ mean.cv.biomass %>%
 ```
 
 
+# Other diversity indices
+
+
+```{r OtherdiversityMetrics, fig.height=8, fig.width=12, message=FALSE, warning=FALSE, out.width="95%"}
+vars <- c(
+  "Coleps sp.",
+  "Paramecium bursaria",
+  "Paramecium caudatum",
+  "Stylonychia sp.",
+  "Colpidium striatum",
+  "Euplotes daidaleos",
+  "Dexiostoma campylum",
+  "Loxocephalus sp.",
+  "Chlamydomonas reinhardtii",
+  "Cosmarium botrytis",
+  "Desmodesmus armatus",
+  "Staurastrum gracile",
+  "Monoraphidium obtusum",
+  "Staurastrum polytrichum",
+  "Bacteria"
+)
+
+Shannon <- dd_list$densities.int.detrend.complete %>%
+  dplyr::filter(
+    species %in% vars,
+    (method == "FlowCam" &
+       density.original >= 100) |
+      (method == "Video" &
+         density.original >= 10) | (method == "Flowcytometer")
+  ) %>%
+  mutate(
+    FunctionalGroup = case_when(
+      species %in% c("Paramecium bursaria", "Euplotes daidaleos") ~ "Mixotrophs",
+      species %in% c(
+        "Cosmarium botrytis",
+        "Desmodesmus armatus",
+        "Staurastrum gracile",
+        "Monoraphidium obtusum",
+        "Staurastrum polytrichum"
+      ) ~ "InedibleAlgae",
+      species %in% c(
+        "Coleps sp.", "Paramecium caudatum", "Stylonychia sp."
+        ) ~ "Omnivores",
+      species %in% c(
+        "Colpidium striatum", "Dexiostoma campylum", "Loxocephalus sp."
+        ) ~ "Bacterivores",
+      species %in% c("Chlamydomonas reinhardtii") ~ "EdibleAlgae",
+      species %in% c("Bacteria") ~ "Bacteria"
+    ),
+    TrophicLevel = ifelse(
+      FunctionalGroup %in% c("Mixotrophs", "Omnivores", "Bacterivores"),
+      "Consumers",
+      "Producers"
+    )
+  ) %>%
+  group_by(bottle, day, light_treatment) %>%
+  mutate(
+    day_richness = n(),
+    NumberFunctionalGroups = length(unique(FunctionalGroup)),
+    NumberTrophicLevels = length(unique(TrophicLevel)),
+    speciesProp = density.original / sum(density.original),
+    speciesPropBio = biomass.original / sum(biomass.original)
+  ) %>%
+  group_by(bottle, day, light_treatment) %>%
+  summarise(
+    NumberFunctionalGroups = unique(NumberFunctionalGroups),
+    NumberTrophicLevels = unique(NumberTrophicLevels),
+    ShannonDiv = -sum(speciesProp * log(speciesProp)),
+    ShannonDivBio = -sum(speciesPropBio * log(speciesPropBio)),
+    day_richness = unique(day_richness),
+    ShannonEven = ShannonDiv / log(day_richness),
+    ShannonEvenBio = ShannonDivBio / log(day_richness)
+  ) %>%
+  group_by(bottle, light_treatment) %>%
+  summarise(
+    Richness = median(day_richness),
+    NumberFunctionalGroups = median(NumberFunctionalGroups),
+    NumberTrophicLevels = as.factor(median(NumberTrophicLevels)),
+    ShannonAbundance = median(ShannonDiv),
+    EvennessAbundance = median(ShannonEven),
+    ShannonBiomass = median(ShannonDivBio),
+    EvennessBiomass = median(ShannonEvenBio)
+  )
+
+  # group_by(bottle) %>%
+  # dplyr::mutate(mean_richness = mean(day_richness, na.rm = T),
+  #               median_richness = median(day_richness, na.rm = T))
+
+```
+
+
+```{r OtherdiversityMetricsCorr, fig.height=7, fig.width=9, message=FALSE, warning=FALSE, fig.cap="Correlations and distributions of different diversity indices (i.e. the median species richness, the median Shannon evenness of the species abundances and biomasses, and the median number of functional groups), colour-coded for the light conditions. The panels in the diagonal show the bar-plots of the richness variables. The panels below the diagonal show the pairwise scatter-plots as indicated by the facet labels (the black line is the identity line, the coloured lines and the corresponding shaded ares show the fit and the 95\\% CI of a linear regression). The panels above the diagonal show the corresponding correlation estimates.", out.width="95%"}
+
+Shannon %>%
+  rename(
+    "Median richness" = Richness,
+    "Abundance evenness" = EvennessAbundance,
+    "Biomass evenness" = EvennessBiomass,
+    "Functional groups" = NumberFunctionalGroups
+  ) %>%
+  ggpairs(
+    mapping = aes(col = light_treatment, fill = light_treatment),
+    columns = c(
+      "Median richness",
+      "Abundance evenness",
+      "Biomass evenness",
+      "Functional groups"
+    ),
+    lower = list(continuous = lowerfun, alpha = 0.5),
+    diag = list(continuous = my_hist),
+    legend = 1,
+  )  +
+  scale_color_manual(values = c("#C4961A", "#293352"),
+                     aesthetics = c("color", "fill")) +
+  labs(col = "Light conditions", fill = "Light conditions") +
+  theme(legend.position = "bottom")
+```
+
+
+
+```{r robustnessCommunityVariable, fig.width=8, fig.height=4, message=FALSE, warning=FALSE, fig.cap='Results of forecast error analyses using different diversity indices (i.e. the median species richness, the median Shannon evenness of the species abundances and biomasses, and the median number of functional groups). The figure depicts the coefficient estimates for regressions between the taxa abundance forecast errors (response) and the covariates "diversity index" and "light conditions". The dots are the estimates and the corresponding error-bars are the 95\\% CI. The colour and shape of the dots specify the used diversity index and the x-axis specifies model coefficient.', out.width="95%"}
+Shannon <- Shannon %>%
+  ungroup() %>%
+  mutate(
+    ShannonAbundance_center = ShannonAbundance - mean(ShannonAbundance),
+    EvennessAbundance_center = EvennessAbundance - mean(EvennessAbundance),
+    ShannonBiomass_center = ShannonBiomass - mean(ShannonBiomass),
+    EvennessBiomass_center = EvennessBiomass - mean(EvennessBiomass),
+    NumberFunctionalGroups_center = NumberFunctionalGroups - median(NumberFunctionalGroups)
+  )
+
+complete.forecasts.shannon <- full_join(complete.forecasts,
+                                        Shannon %>% dplyr::select(-Richness))
+
+
+formula <-
+  as.formula(
+    paste0(
+      "RMSE ~ ",
+      "richness_var",
+      "*light_treatment + (1|Target) + (1|bottle) + (1|incubator)"
+    )
+  )
+
+community_vars <- list(
+  "median_richness_center",
+  "EvennessAbundance_center",
+  "EvennessBiomass_center",
+  "NumberFunctionalGroups_center"
+)
+
+fore.methods <- list("Simplex EDM")
+
+tab.shannon <-
+  robustnessFunction(community_vars,
+                     fore.methods,
+                     complete.forecasts.shannon,
+                     formula,
+                     phases = F)
+
+residuals.shannon <- do.call("rbind", map(tab.shannon, 2))
+tab.shannon <- do.call("rbind", map(tab.shannon, 1))
+
+tab.shannon <- tab.shannon %>%
+  mutate(
+    method = ifelse(method == "RNN", "Recurrent Neural Networks", method),
+    richness_var = case_when(
+      richness_var == "median_richness_center" ~ "Median richness",
+      richness_var == "EvennessAbundance_center" ~
+        "Abundance evenness",
+      richness_var == "EvennessBiomass_center" ~
+        "Biomass evenness",
+      richness_var == "NumberFunctionalGroups_center" ~
+        "Functional groups"
+    ),
+    term = case_when(
+      term == "(Intercept)" ~ "Intercept",
+      term == "light_treatmentdecreasing" ~ "Light conditions\n(decreasing)",
+      term == "richness_var" ~ "Diversity\nindex",
+      term == "richness_var:light_treatmentdecreasing" ~
+        "Interaction: light conditions \nand diversity index"
+    ),
+    term = factor(
+      term,
+      levels = c(
+        "Intercept",
+        "Light conditions\n(decreasing)",
+        "Diversity\nindex",
+        "Interaction: light conditions \nand diversity index"
+      )
+    )
+  )
+
+tab.shannon %>%
+  ggplot(aes(term, estimate, col = richness_var)) +
+  geom_hline(yintercept = 0, linetype = 2) +
+  geom_errorbar(
+    aes(ymin = conf.low, ymax = conf.high),
+    width = 0.2,
+    position = position_dodge(width = 0.4)
+  ) +
+  geom_point(
+    aes(fill = richness_var, shape = richness_var),
+    position = position_dodge(width = 0.4),
+    col = "black"
+  ) +
+  labs(
+    x = "Model coefficient",
+    y = "Coeffecient estimates + 95% CI",
+    col = "Diversity index\nused in model",
+    fill = "Diversity index\nused in model",
+    shape = "Diversity index\nused in model"
+  ) +
+  scale_color_brewer(palette = "Dark2", aesthetics = c("fill", "colour")) +
+  scale_shape_manual(values = 21:24) +
+  standard_theme2() +
+  theme(
+    legend.position = "right",
+    strip.background = element_rect(fill = "white"),
+    strip.text = element_text(color = "black", face = "bold")
+  )
+```
+
+
 
 
 # Versions of R and of the R-packages used

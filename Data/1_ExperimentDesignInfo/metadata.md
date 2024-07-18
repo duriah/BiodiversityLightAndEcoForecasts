@@ -1,0 +1,29 @@
+# Data information
+
+- `Compositions.csv`: contains the information about which species made up the 15 different communities. Each row is a different planned community composition. Variables:
+  - `composition`: the name of the composition
+  - `richness`: the planned species richness (number of species)
+  - Remaining variables: species, with a 1 indicating that it is included in a given composition, and a 0 that it is not.
+- `ExperimentalDesign.csv`: contains the experimental design. Each row is an experimental unit. Variables:
+  - `bottle`: the name of the bottle (the experimental units)
+  - `composition`: the name of the community composition
+  - `light_treatment`: whether the light was constant or whether it decreased during the experiment
+  - `incubator`: in which incubator the bottle was stored
+- `FlowCamFiltering.csv`: we compared filtered and unfiltered FlowCam samples. This data is stored here. Each is row is a sample. Variables:
+  - `species`: the name of the species from which the sample was taken
+  - `bottle`: the name of the bottle from which the sample was taken
+  - `filtered`: the filtered density estimate 
+  - `unfiltered`: the unfiltered density estimate (units: individuals per ml)
+- `Flowcytometer.csv`: we compared filtered and unfiltered Flowcytometer samples. This data is stored here. Each is row is a sample. Variables:
+  - `bottle`: the name of the bottle from which the sample was taken
+  - `filtered`: the filtered density estimate 
+  - `unfiltered`: the unfiltered density estimate (units: individuals per ml)
+- `LightDeclineSchedule.csv`: the schedule regarding the light levels used during the experiment. Variables:
+  - `weekday`: the day of the week, abbreviated to three letters
+  - `date`: the data, format dd-Month-yy (Month abbreviated to 3 letters)
+  - `day`: days since start of experiment (starts at 1)
+  - `week`: weeks since start of experiment (starts at 1)
+  - `constant`: light percent in the constant setting (%)
+  - `declining`: light percent in the declining setting (%)
+- `gate_coordinates.csv`: contains the information regarding the gates used in the flowcytometry
+- `flowFrame.rds`: contains the data for one example flowcytometer sample tp show the gating strategy in the supplement

@@ -1,0 +1,75 @@
+# Data information
+
+- The results of the forecasting are stored here
+- The used forecast methods were: **ARIMA**, **multiview EDM**, **Random Forest (RF)**, **Recurrent Neural Netowrks (RNN)** and **Simplex EDM**.
+- `1_DetrendedLinearly`: contains the forecast results for when the time series were **detrended linearly** (temporal regression). 
+  - Datasets (each row is forecast result, specific to bottle, forecast target and forecast method):
+    - `complete.arima.forecasts.RDS`: ARIMA forecasts
+    - `complete.multiview.forecasts.RDS`: multiview EDM forecasts
+    - `complete.rf.forecasts.RDS`: RF forecasts
+    - `complete.rnn.forecasts.RDS`: RNN forecasts
+    - `complete.simplex.forecasts.RDS`: simplex EDM forecasts
+    
+- `2_SegmentedAnalysis`: contains the forecast results for when the time series were detrended with **segmented regression**
+  - Datasets (each row is forecast result, specific to bottle, forecast target and forecast method):
+    - `complete.arima.forecasts.RDS`: ARIMA forecasts
+    - `complete.multiview.forecasts.RDS`: multiview EDM forecasts
+    - `complete.rf.forecasts.RDS`: RF forecasts
+    - `complete.rnn.forecasts.RDS`: RNN forecasts
+    - `complete.simplex.forecasts.RDS`: simplex EDM forecasts
+
+- `3_MergedResults`: contains the merged forecast results across all used forecasting methods as well as the time series metrics. The two files inside are respectively for the linear detrended time series and for the time series that were detrended using a segmented regression. 
+  - Datasets (Each row is forecast result, specific to bottle, forecast target and forecast method):
+    - `complete.forecasts.RData`: merged forecast results for the linearly detrended time series
+    - `seg.complete.forecasts.RData`: merged forecast results for the time series detrended with segmented regression
+
+- Variables in the datasets:
+    - `bottle`: name of the bottle sampled
+    - `richness`: the planned richness (number of species)
+    - `composition`: the name of the community composition
+    - `incubator`: the name of the incubator in which the bottle was stored
+    - `realized_richness`: the minimally observed species richness over the whole experiment per bottle (number of species)
+    - `mean_richness`: the mean species richness over the whole experiment per bottle (mean number of species) 
+    - `median_richness`: the median species richness over the whole experiment per bottle (median number of species) 
+    - `light_treatment`: light conditions applied (constant or decreasing)
+    - `Target`: the forecasted target (i.e. taxa, community biomass or oxygen)
+    - `RMSE`: The root mean square error
+    - `k`: the number of views used in the multiview EDM forecast
+    - `E`: the embedding dimension used in simplex and multiview EDM
+    - `actual_predictors`: the effectively used predictors in the multiview EDM forecasts
+    - `lagged_predictors`: the effectively used predictors in the multiview EDM forecasts including their lagged versions
+    - `number_actual_predictors`: the number of effectively used predictors in multiview EDM
+    - `number_lagged_predictors`: the number of effectively used predictors in multiview EDM, including their lagged versions
+    - `Bacteria`: boolean indicating whether the respective variable was effectively used as a predictor in multiview EDM
+    - `Chlamydomonas_clumps`: boolean indicating whether the respective variable was effectively used as a predictor in multiview EDM
+    - `Chlamydomonas_reinhardtii`: boolean indicating whether the respective variable was effectively used as a predictor in multiview EDM
+    - `Coleps_sp.`: boolean indicating whether the respective variable was effectively used as a predictor in multiview EDM
+    - `Desmodesmus_armatus`: boolean indicating whether the respective variable was effectively used as a predictor in multiview EDM
+    - `Desmodesmus_clumps`: boolean indicating whether the respective variable was effectively used as a predictor in multiview EDM
+    - `Dividing_Chlamydomonas`: boolean indicating whether the respective variable was effectively used as a predictor in multiview EDM
+    - `Paramecium_bursaria`: boolean indicating whether the respective variable was effectively used as a predictor in multiview EDM
+    - `Paramecium_caudatum`: boolean indicating whether the respective variable was effectively used as a predictor in multiview EDM
+    - `Small_cells`: boolean indicating whether the respective variable was effectively used as a predictor in multiview EDM
+    - `Mean_oxygen`: boolean indicating whether the respective variable was effectively used as a predictor in multiview EDM
+    - `Total_biomass`: boolean indicating whether the respective variable was effectively used as a predictor in multiview EDM
+    - `Cosmarium_botrytis`: boolean indicating whether the respective variable was effectively used as a predictor in multiview EDM
+    - `IC`: boolean indicating whether the respective variable was effectively used as a predictor in multiview EDM
+    - `TC`: boolean indicating whether the respective variable was effectively used as a predictor in multiview EDM
+    - `TN`: boolean indicating whether the respective variable was effectively used as a predictor in multiview EDM
+    - `TOC`: boolean indicating whether the respective variable was effectively used as a predictor in multiview EDM
+    - `Staurastrum_gracile`: boolean indicating whether the respective variable was effectively used as a predictor in multiview EDM
+    - `Monoraphidium_obtusum`: boolean indicating whether the respective variable was effectively used as a predictor in multiview EDM
+    - `Staurastrum_polytrichum`: boolean indicating whether the respective variable was effectively used as a predictor in multiview EDM
+    - `Stylonychia_sp.`: boolean indicating whether the respective variable was effectively used as a predictor in multiview EDM
+    - `Colpidium_striatum`: boolean indicating whether the respective variable was effectively used as a predictor in multiview EDM
+    - `Dexiostoma_campylum`: boolean indicating whether the respective variable was effectively used as a predictor in multiview EDM
+    - `Euplotes_daidaleos`: boolean indicating whether the respective variable was effectively used as a predictor in multiview EDM
+    - `Loxocephalus_sp.`: boolean indicating whether the respective variable was effectively used as a predictor in multiview EDM
+    - `forecast.method`: variable specifying which forecast method was used
+    - `realized_richness_center`: the centered (mean 0) realized richness
+    - `median_richness_center`: the centered (mean 0) median richness
+    - `mean_richness_center`: the centered (mean 0) mean richness
+    - `pe5`: the permutation entropy of the respective time series with word length 5
+    - `cv.res`: the coefficient of variation of the respective detrended but not standardized time series
+    - `acf_lag5`: the autocorrelation at lag 5 of the respective time series 
+    - `cv.res.log10`: the log10 transformed coefficient of variation of the respective detrended but not standardized time series
