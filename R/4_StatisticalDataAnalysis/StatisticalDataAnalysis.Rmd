@@ -55,8 +55,8 @@ library(GGally)
 library(broom.mixed) 
 library(flowCore)
 library(flowViz)
-library(bemovi)
-library(LEEF.measurement.bemovi)
+# library(bemovi)
+# library(LEEF.measurement.bemovi)
 library(survey) 
 library(lavaan) 
 library(lavaan.survey)
@@ -986,14 +986,14 @@ dd.rich.test <- dd_list$densities %>%
   ) %>%
   dplyr::summarise(n = n())
 
-t.test.light <-
-  t.test(
-    mean_richness ~ light_treatment,
-    paired = TRUE,
-    alternative = "two.sided",
-    data = dd.rich.test
-  )
-t.test.light
+# t.test.light <-
+#   t.test(
+#     mean_richness ~ light_treatment,
+#     paired = TRUE,
+#     alternative = "two.sided",
+#     data = dd.rich.test
+#   )
+# t.test.light
 ```
 
 
