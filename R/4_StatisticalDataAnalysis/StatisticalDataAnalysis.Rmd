@@ -60,6 +60,8 @@ library(flowViz)
 library(survey) 
 library(lavaan) 
 library(lavaan.survey)
+library(effectsize)
+library(r2glmm)
 
 #### Regarding lavaan.survey
 # lavaan.survey is an extension of lavaan that can deal with data independencies. 
@@ -96,6 +98,12 @@ load(here(
 ))
 load(here(
   "Data/3_ForecastsResults/3_MergedResults/seg.complete.forecasts.RData"
+))
+load(here(
+  "Data/3_ForecastsResults/3_MergedResults/RMSEBackT.complete.forecasts.RData"
+))
+load(here(
+  "Data/3_ForecastsResults/3_MergedResults/inSample.complete.forecasts.RData"
 ))
 ```
 
@@ -1262,112 +1270,170 @@ m.species.list <- list(
 ##### Total biomass forecast model regressions
 ##### --------------------------------------------
 
-formula <-
-  as.formula(RMSE ~ median_richness_center * light_treatment +
-               (1 | composition) + (1 | incubator))
+formula <- as.formula(RMSE ~ median_richness_center * light_treatment +
+                        (1 | composition) + (1 | incubator))
+formula.no.int <- as.formula(RMSE ~ median_richness_center + light_treatment +
+                               (1 | composition) + (1 | incubator))
 
 m.simplex.bio <- lmer(
   formula,
   complete.forecasts %>%
-    dplyr::filter(forecast.method == "Simplex EDM",
-                  Target == "Total_biomass")
+    dplyr::filter(forecast.method == "Simplex EDM", Target == "Total_biomass")
 )
 
 m.multiview.bio <- lmer(
   formula,
   complete.forecasts %>%
-    dplyr::filter(forecast.method == "Multiview EDM",
-                  Target == "Total_biomass")
+    dplyr::filter(forecast.method == "Multiview EDM", Target == "Total_biomass")
 )
 
 m.arima.bio <- lmer(
   formula,
   complete.forecasts %>%
-    dplyr::filter(forecast.method == "ARIMA",
-                  Target == "Total_biomass")
+    dplyr::filter(forecast.method == "ARIMA", Target == "Total_biomass")
 )
 
 m.rnn.bio <- lmer(
   formula,
   complete.forecasts %>%
-    dplyr::filter(forecast.method == "RNN",
-                  Target == "Total_biomass")
+    dplyr::filter(forecast.method == "RNN", Target == "Total_biomass")
 )
 
 m.rf.bio <- lmer(
   formula,
   complete.forecasts %>%
-    dplyr::filter(forecast.method == "Random Forest",
-                  Target == "Total_biomass")
+    dplyr::filter(forecast.method == "Random Forest", Target == "Total_biomass")
 )
 
+## no interaction
+
+m.simplex.bio.no.int <- lmer(
+  formula.no.int,
+  complete.forecasts %>%
+    dplyr::filter(forecast.method == "Simplex EDM", Target == "Total_biomass")
+)
+
+m.multiview.bio.no.int <- lmer(
+  formula.no.int,
+  complete.forecasts %>%
+    dplyr::filter(forecast.method == "Multiview EDM", Target == "Total_biomass")
+)
+
+m.arima.bio.no.int <- lmer(
+  formula.no.int,
+  complete.forecasts %>%
+    dplyr::filter(forecast.method == "ARIMA", Target == "Total_biomass")
+)
+
+m.rnn.bio.no.int <- lmer(
+  formula.no.int,
+  complete.forecasts %>%
+    dplyr::filter(forecast.method == "RNN", Target == "Total_biomass")
+)
+
+m.rf.bio.no.int <- lmer(
+  formula.no.int,
+  complete.forecasts %>%
+    dplyr::filter(forecast.method == "Random Forest", Target == "Total_biomass")
+)
+
+
 m.bio.list <- list(
-  `Simplex EDM` = m.simplex.bio,
-  `Multiview EDM` = m.multiview.bio,
-  `ARIMA` = m.arima.bio,
+  `Simplex EDM` = m.simplex.bio.no.int,
+  `Multiview EDM` = m.multiview.bio.no.int,
+  `ARIMA` = m.arima.bio.no.int,
   `RNN` = m.rnn.bio,
-  `Random Forest` = m.rf.bio
+  `Random Forest` = m.rf.bio.no.int
 )
 
 ##### ------------------------------------------
 ##### Mean oxygen forecast model regressions
 ##### ------------------------------------------
 
-formula <-
-  as.formula(RMSE ~ median_richness_center * light_treatment +
-               (1 | composition) + (1 | incubator))
+
+formula <- as.formula(RMSE ~ median_richness_center * light_treatment +
+                        (1 | composition) + (1 | incubator))
+formula.no.int <- as.formula(RMSE ~ median_richness_center + light_treatment +
+                               (1 | composition) + (1 | incubator))
 
 m.simplex.oxy <- lmer(
   formula,
   complete.forecasts %>%
-    dplyr::filter(forecast.method == "Simplex EDM",
-                  Target == "Mean_oxygen")
+    dplyr::filter(forecast.method == "Simplex EDM", Target == "Mean_oxygen")
 )
 
 m.multiview.oxy <- lmer(
   formula,
   complete.forecasts %>%
-    dplyr::filter(forecast.method == "Multiview EDM",
-                  Target == "Mean_oxygen")
+    dplyr::filter(forecast.method == "Multiview EDM", Target == "Mean_oxygen")
 )
 
 m.arima.oxy <- lmer(
   formula,
   complete.forecasts %>%
-    dplyr::filter(forecast.method == "ARIMA",
-                  Target == "Mean_oxygen")
+    dplyr::filter(forecast.method == "ARIMA", Target == "Mean_oxygen")
 )
 
 m.rnn.oxy <- lmer(
   formula,
   complete.forecasts %>%
-    dplyr::filter(forecast.method == "RNN",
-                  Target == "Mean_oxygen")
+    dplyr::filter(forecast.method == "RNN", Target == "Mean_oxygen")
 )
 
 m.rf.oxy <- lmer(
   formula,
   complete.forecasts %>%
-    dplyr::filter(forecast.method == "Random Forest",
-                  Target == "Mean_oxygen")
+    dplyr::filter(forecast.method == "Random Forest", Target == "Mean_oxygen")
 )
 
+## no interaction
+m.simplex.oxy.no.int <- lmer(
+  formula.no.int,
+  complete.forecasts %>%
+    dplyr::filter(forecast.method == "Simplex EDM", Target == "Mean_oxygen")
+)
+
+m.multiview.oxy.no.int <- lmer(
+  formula.no.int,
+  complete.forecasts %>%
+    dplyr::filter(forecast.method == "Multiview EDM", Target == "Mean_oxygen")
+)
+
+m.arima.oxy.no.int <- lmer(
+  formula.no.int,
+  complete.forecasts %>%
+    dplyr::filter(forecast.method == "ARIMA", Target == "Mean_oxygen")
+)
+
+m.rnn.oxy.no.int <- lmer(
+  formula.no.int,
+  complete.forecasts %>%
+    dplyr::filter(forecast.method == "RNN", Target == "Mean_oxygen")
+)
+
+m.rf.oxy.no.int <- lmer(
+  formula.no.int,
+  complete.forecasts %>%
+    dplyr::filter(forecast.method == "Random Forest", Target == "Mean_oxygen")
+)
+
+
 m.oxy.list <- list(
-  `Simplex EDM` = m.simplex.oxy,
-  `Multiview EDM` = m.multiview.oxy,
-  `ARIMA` = m.arima.oxy,
-  `RNN` = m.rnn.oxy,
-  `Random Forest` = m.rf.oxy
+  `Simplex EDM` = m.simplex.oxy.no.int,
+  `Multiview EDM` = m.multiview.oxy.no.int,
+  `ARIMA` = m.arima.oxy.no.int,
+  `RNN` = m.rnn.oxy.no.int,
+  `Random Forest` = m.rf.oxy.no.int
 )
 
 ##### ------------------------------------------------------------
 ##### Total biomass vs Mean Species forecast model regressions
 ##### ------------------------------------------------------------
 
+
 average.complete.forecasts2 <- complete.forecasts %>%
   dplyr::filter(!(Target %in% c("Mean_oxygen"))) %>%
-  mutate(aggregatedMeasure = ifelse(Target %in% c("Total_biomass", "Mean_oxygen"),
-                                    T, F)) %>%
+  mutate(aggregatedMeasure = ifelse(Target %in% c("Total_biomass", "Mean_oxygen"), T, F)) %>%
   group_by(
     bottle,
     richness,
@@ -1382,16 +1448,19 @@ average.complete.forecasts2 <- complete.forecasts %>%
     mean_richness_center,
     aggregatedMeasure
   ) %>%
-  summarise(meanRMSE = mean(RMSE),
-            sdRMSE = sd(RMSE))
+  summarise(meanRMSE = mean(RMSE), sdRMSE = sd(RMSE))
 
-formula <-
-  as.formula(
-    meanRMSE ~ median_richness_center * light_treatment +
-      median_richness_center * aggregatedMeasure +
-      light_treatment * aggregatedMeasure +
-      (1 | bottle) + (1 | incubator)
-  )
+formula <- as.formula(
+  meanRMSE ~ median_richness_center * light_treatment +
+    median_richness_center * aggregatedMeasure +
+    light_treatment * aggregatedMeasure +
+    (1 | bottle) + (1 | incubator)
+)
+formula.no.int <- as.formula(
+  meanRMSE ~ median_richness_center + light_treatment +
+    aggregatedMeasure +
+    (1 | bottle) + (1 | incubator)
+)
 
 m.simplex.aggr.bio <- lmer(
   formula,
@@ -1399,12 +1468,11 @@ m.simplex.aggr.bio <- lmer(
     dplyr::filter(forecast.method == "Simplex EDM")
 )
 
-m.multiview.aggr.bio <-
-  lmer(
-    formula,
-    average.complete.forecasts2 %>%
-      dplyr::filter(forecast.method == "Multiview EDM")
-  )
+m.multiview.aggr.bio <- lmer(
+  formula,
+  average.complete.forecasts2 %>%
+    dplyr::filter(forecast.method == "Multiview EDM")
+)
 
 m.arima.aggr.bio <- lmer(formula,
                          average.complete.forecasts2 %>%
@@ -1420,22 +1488,58 @@ m.rf.aggr.bio <- lmer(
     dplyr::filter(forecast.method == "Random Forest")
 )
 
-m.aggr.bio.list <- list(
-  `Simplex EDM` = m.simplex.aggr.bio,
-  `Multiview EDM` = m.multiview.aggr.bio,
-  `ARIMA` = m.arima.aggr.bio,
-  `RNN` = m.rnn.aggr.bio,
-  `Random Forest` = m.rf.aggr.bio
+# adpated models with dropped interactions if insignificant
+
+m.simplex.aggr.bio.no.int <- lmer(
+  formula.no.int,
+  average.complete.forecasts2 %>%
+    dplyr::filter(forecast.method == "Simplex EDM")
 )
+
+m.multiview.aggr.bio.no.int <- lmer(
+  meanRMSE ~ median_richness_center * light_treatment +
+    aggregatedMeasure + (1 |
+                           bottle) + (1 | incubator),
+  average.complete.forecasts2 %>% dplyr::filter(forecast.method == "Multiview EDM")
+)
+
+m.arima.aggr.bio.no.int <- lmer(
+  formula.no.int,
+  average.complete.forecasts2 %>%
+    dplyr::filter(forecast.method == "ARIMA")
+)
+
+m.rnn.aggr.bio.no.int <- lmer(
+  meanRMSE ~ median_richness_center * light_treatment +
+    aggregatedMeasure + (1 |
+                           bottle) + (1 | incubator),
+  average.complete.forecasts2 %>% dplyr::filter(forecast.method == "RNN")
+)
+
+m.rf.aggr.bio.no.int <- lmer(
+  formula.no.int,
+  average.complete.forecasts2 %>%
+    dplyr::filter(forecast.method == "Random Forest")
+)
+
+
+m.aggr.bio.list <- list(
+  `Simplex EDM` = m.simplex.aggr.bio.no.int,
+  `Multiview EDM` = m.multiview.aggr.bio.no.int,
+  `ARIMA` = m.arima.aggr.bio.no.int,
+  `RNN` = m.rnn.aggr.bio.no.int,
+  `Random Forest` = m.rf.aggr.bio.no.int
+)
+
 
 ##### ---------------------------------------------------------
 ##### Mean oxygen vs Mean Species forecast model regressions
 ##### ---------------------------------------------------------
 
+
 average.complete.forecasts.oxy <- complete.forecasts %>%
   dplyr::filter(!(Target %in% c("Total_biomass"))) %>%
-  mutate(aggregatedMeasure = ifelse(Target %in% c("Mean_oxygen", "Total_biomass"),
-                                    T, F)) %>%
+  mutate(aggregatedMeasure = ifelse(Target %in% c("Mean_oxygen", "Total_biomass"), T, F)) %>%
   group_by(
     bottle,
     richness,
@@ -1450,31 +1554,27 @@ average.complete.forecasts.oxy <- complete.forecasts %>%
     mean_richness_center,
     aggregatedMeasure
   ) %>%
-  summarise(meanRMSE = mean(RMSE),
-            sdRMSE = sd(RMSE))
+  summarise(meanRMSE = mean(RMSE), sdRMSE = sd(RMSE))
 
-formula <-
-  as.formula(
-    meanRMSE ~ median_richness_center * light_treatment +
-      median_richness_center * aggregatedMeasure +
-      light_treatment * aggregatedMeasure +
-      (1 | bottle) + (1 | incubator)
-  )
+formula <- as.formula(
+  meanRMSE ~ median_richness_center * light_treatment +
+    median_richness_center * aggregatedMeasure +
+    light_treatment * aggregatedMeasure +
+    (1 | bottle) + (1 | incubator)
+)
 
 
-m.simplex.aggr.oxy <-
-  lmer(
-    formula,
-    average.complete.forecasts.oxy %>%
-      dplyr::filter(forecast.method == "Simplex EDM")
-  )
+m.simplex.aggr.oxy <- lmer(
+  formula,
+  average.complete.forecasts.oxy %>%
+    dplyr::filter(forecast.method == "Simplex EDM")
+)
 
-m.multiview.aggr.oxy <-
-  lmer(
-    formula,
-    average.complete.forecasts.oxy %>%
-      dplyr::filter(forecast.method == "Multiview EDM")
-  )
+m.multiview.aggr.oxy <- lmer(
+  formula,
+  average.complete.forecasts.oxy %>%
+    dplyr::filter(forecast.method == "Multiview EDM")
+)
 
 m.arima.aggr.oxy <- lmer(
   formula,
@@ -1492,12 +1592,56 @@ m.rf.aggr.oxy <- lmer(
     dplyr::filter(forecast.method == "Random Forest")
 )
 
+
+# adpated models with dropped interactions if insignificant
+
+formula.adapt <- as.formula(
+  meanRMSE ~ median_richness_center + light_treatment + aggregatedMeasure +
+    (1 | bottle) + (1 | incubator)
+)
+
+m.simplex.aggr.oxy.adapt <- lmer(
+  formula.adapt,
+  average.complete.forecasts.oxy %>%
+    dplyr::filter(forecast.method == "Simplex EDM")
+)
+
+m.multiview.aggr.oxy.adapt <- lmer(
+  meanRMSE ~ median_richness_center + light_treatment +
+    aggregatedMeasure + median_richness_center:aggregatedMeasure +
+    (1 | bottle) + (1 | incubator),
+  average.complete.forecasts.oxy %>%
+    dplyr::filter(forecast.method == "Multiview EDM")
+)
+
+m.arima.aggr.oxy.adapt <- lmer(
+  meanRMSE ~ median_richness_center * light_treatment + aggregatedMeasure +
+    (1 | bottle) + (1 | incubator),
+  average.complete.forecasts.oxy %>%
+    dplyr::filter(forecast.method == "ARIMA")
+)
+
+m.rnn.aggr.oxy.adapt <- lmer(
+  meanRMSE ~ median_richness_center * light_treatment + aggregatedMeasure +
+    (1 | bottle) + (1 | incubator),
+  average.complete.forecasts.oxy %>%
+    dplyr::filter(forecast.method == "RNN")
+)
+
+m.rf.aggr.oxy.adapt <- lmer(
+  meanRMSE ~ median_richness_center * light_treatment + aggregatedMeasure +
+    (1 | bottle) + (1 | incubator),
+  average.complete.forecasts.oxy %>%
+    dplyr::filter(forecast.method == "Random Forest")
+)
+
+
 m.aggr.oxy.list <- list(
-  `Simplex EDM` = m.simplex.aggr.oxy,
-  `Multiview EDM` = m.multiview.aggr.oxy,
-  `ARIMA` = m.arima.aggr.oxy,
-  `RNN` = m.rnn.aggr.oxy,
-  `Random Forest` = m.rf.aggr.oxy
+  `Simplex EDM` = m.simplex.aggr.oxy.adapt,
+  `Multiview EDM` = m.multiview.aggr.oxy.adapt,
+  `ARIMA` = m.arima.aggr.oxy.adapt,
+  `RNN` = m.rnn.aggr.oxy.adapt,
+  `Random Forest` = m.rf.aggr.oxy.adapt
 )
 ```
 
@@ -1577,24 +1721,21 @@ figure1a <- complete.forecasts %>%
 #------------------------------------
 
 dd.m.simplex <- complete.forecasts %>%
-  dplyr::filter(forecast.method == "Simplex EDM",
-                Target == "Total_biomass")
+  dplyr::filter(forecast.method == "Simplex EDM", Target == "Total_biomass")
 
-newdat.m.simplex.bio <-
-  expand.grid(
-    median_richness_center = seq(
-      min(dd.m.simplex$median_richness_center),
-      max(dd.m.simplex$median_richness_center),
-      length.out = 100
-    ),
-    light_treatment = unique(dd.m.simplex$light_treatment)
-  )
+newdat.m.simplex.bio <- expand.grid(
+  median_richness_center = seq(
+    min(dd.m.simplex$median_richness_center),
+    max(dd.m.simplex$median_richness_center),
+    length.out = 100
+  ),
+  light_treatment = unique(dd.m.simplex$light_treatment)
+)
 
-newdat.m.simplex.bio <-
-  conf_interval(m.simplex.bio,
-                newdat.m.simplex.bio,
-                "RMSE",
-                "Forecast error (RMSE)")
+newdat.m.simplex.bio <- conf_interval(m.simplex.bio.no.int,
+                                      newdat.m.simplex.bio,
+                                      "RMSE",
+                                      "Forecast error (RMSE)")
 
 figure1b <- complete.forecasts %>%
   dplyr::filter(Target == "Total_biomass", forecast.method == "Simplex EDM") %>%
@@ -1615,9 +1756,8 @@ figure1b <- complete.forecasts %>%
             size = 1.3,
             aes(y = fit, group = light_treatment)) +
   geom_point(size = 2.5, alpha = 0.6) +
-  labs(x = "Centered median realized species richness",
-       y = "Community biomass forecast error (RMSE)",
-       col = "Light conditions") +
+  labs(x = "Centered median realized species richness", y = "Community biomass forecast error (RMSE)", col =
+         "Light conditions") +
   scale_color_manual(values = c("#C4961A", "#293352"),
                      aesthetics = c("color", "fill")) +
   theme_bw() +
@@ -1633,16 +1773,163 @@ figure1a + figure1b +
 ```
 
 
+```{r m.r2, eval=FALSE}
+formula <-
+  as.formula(
+    RMSE ~ median_richness_center * light_treatment +
+      (1 | Target) + (1 | bottle) + (1 | incubator)
+  )
+m.simplex <- lmer(
+  formula,
+  complete.forecasts %>%
+    dplyr::filter(
+      forecast.method == "Simplex EDM",
+      Target != "Total_biomass",
+      Target != "Mean_oxygen"
+    )
+)
+eta_squared(m.simplex)
+r2beta(m.simplex, method = "kr") # kenward roger
+r2beta(m.simplex, method = "nsj") # nakagawa similar
+```
+
+```{r split.regresison, message=FALSE, warning=FALSE}
+complete.forecasts.split.c <- complete.forecasts %>%
+  dplyr::filter(
+    forecast.method == "Simplex EDM",
+    light_treatment == "constant",
+    Target != "Total_biomass",
+    Target != "Mean_oxygen"
+  ) %>%
+  mutate(log10median_richness = log10(median_richness))
+
+complete.forecasts.split.d <- complete.forecasts %>%
+  dplyr::filter(
+    forecast.method == "Simplex EDM",
+    light_treatment == "decreasing",
+    Target != "Total_biomass",
+    Target != "Mean_oxygen"
+  ) %>%
+  mutate(log10median_richness = log10(median_richness))
+
+
+formula.split <- as.formula(RMSE ~ median_richness_center +
+                              (1 |
+                                 Target) + (1 | bottle) + (1 | incubator))
+
+formula.split2 <- as.formula(RMSE ~ log10median_richness +
+                               (1 |
+                                  Target) + (1 | bottle) + (1 | incubator))
+
+m.simplex.constant <- lmer(formula.split2, complete.forecasts.split.c)
+m.simplex.decreasing <- lmer(formula.split2, complete.forecasts.split.d)
+
+newdat.m.simplex.c <- expand.grid(
+  log10median_richness = seq(
+    min(complete.forecasts.split.c$log10median_richness),
+    max(complete.forecasts.split.c$log10median_richness),
+    length.out = 100
+  ),
+  light_treatment = unique(complete.forecasts.split.c$light_treatment)
+)
+
+newdat.m.simplex.d <- expand.grid(
+  log10median_richness = seq(
+    min(complete.forecasts.split.d$log10median_richness),
+    max(complete.forecasts.split.d$log10median_richness),
+    length.out = 100
+  ),
+  light_treatment = unique(complete.forecasts.split.d$light_treatment)
+)
+
+newdat.m.simplex.c <- conf_interval(m.simplex.constant,
+                                    newdat.m.simplex.c,
+                                    "RMSE",
+                                    "Forecast error (RMSE)")
+newdat.m.simplex.d <- conf_interval(m.simplex.decreasing,
+                                    newdat.m.simplex.d,
+                                    "RMSE",
+                                    "Forecast error (RMSE)")
+```
+
 ```{r RegressionTablesForecasts, message=FALSE, warning=FALSE}
+
 #### ------------------------------------------------------------
 #### Table for simplex species forecasts regression (Main text)
 #### ------------------------------------------------------------
 
 r.simplex <- rand(m.simplex)
 
-spec.ab.rmse.tab <-
-  data.frame(
-    Response = "Forecast error\nof target\nabundances",
+spec.ab.rmse.tab <- data.frame(
+  Response = "Forecast error\nof target\nabundances",
+  Covariate = c(
+    "Intercept",
+    "Richness",
+    "Light (decreasing)",
+    "Richness:Light",
+    "Target (taxa)",
+    "Bottle",
+    "Incubator"
+  ),
+  Type = c(
+    rep("Fixed\neffect", 4),
+    "Random\nintercept",
+    "Random\nintercept",
+    "Random\nintercept"
+  ),
+  Estimate = c(fixef(m.simplex), as.data.frame(VarCorr(m.simplex))$sdcor[1:3]),
+  DF = c(round(summary(m.simplex)$coef[, 3, drop = FALSE], 0), r.simplex$Df[2:4]),
+  SE = c(summary(m.simplex)$coef[, 2, drop = FALSE], NA, NA, NA),
+  Test = c(rep("\\textit{t}", 4), "$\\chi^2$", "$\\chi^2$", "$\\chi^2$"),
+  Test.value = c(summary(m.simplex)$coef[, 4, drop = FALSE], r.simplex$LRT[2:4]),
+  p.value = c(summary(m.simplex)$coef[, 5, drop = FALSE], r.simplex$`Pr(>Chisq)`[2:4])
+)
+
+spec.ab.rmse.tab.anova.tab <- data.frame(
+  Response = "Forecast error\nof target\nabundances",
+  Covariate = c("Richness", "Light (decreasing)", "Richness:Light"),
+  Type = "Sum of\nsquares",
+  Estimate = anova(m.simplex)[, 1],
+  DF = paste(anova(m.simplex)[, 3], round(anova(m.simplex)[, 4], 1), sep = ", "),
+  SE = NA,
+  Test = "\\textit{F}",
+  Test.value = anova(m.simplex)[, 5],
+  p.value = anova(m.simplex)[, 6]
+)
+
+spec.ab.rmse.tab <- rbind(spec.ab.rmse.tab, spec.ab.rmse.tab.anova.tab)
+
+
+
+#### -----------------------------------------------------------------------
+#### Table for species forecasts regression (Supplementary): all forecasts
+#### -----------------------------------------------------------------------
+
+newdat.taxa <- data.frame()
+tab.taxa <- data.frame()
+
+df <- complete.forecasts %>%
+  dplyr::filter(!(Target == c("Total_biomass", "Mean_oxygen")))
+
+newdat.t <- expand.grid(
+  median_richness_center = seq(
+    min(df$median_richness_center),
+    max(df$median_richness_center),
+    length.out = 100
+  ),
+  light_treatment = unique(df$light_treatment)
+)
+
+for (m.name in names(m.species.list)) {
+  m <- m.species.list[[m.name]]
+  newdat.t2 <- conf_interval(m, newdat.t, "RMSE", "Forecast error (RMSE)")
+  newdat.t2$forecast.method <- m.name
+  
+  r <- rand(m)
+  
+  tab1 <- data.frame(
+    Response = "Forecast\nerror of\ntaxa\nabundances",
+    forecast.method = m.name,
     Covariate = c(
       "Intercept",
       "Richness",
@@ -1658,84 +1945,130 @@ spec.ab.rmse.tab <-
       "Random\nintercept",
       "Random\nintercept"
     ),
-    Estimate = c(fixef(m.simplex), as.data.frame(VarCorr(m.simplex))$sdcor[1:3]),
-    DF = c(round(summary(m.simplex)$coef[, 3, drop = FALSE], 0), r.simplex$Df[2:4]),
-    SE = c(summary(m.simplex)$coef[, 2, drop = FALSE], NA, NA, NA),
+    Estimate = c(fixef(m), as.data.frame(VarCorr(m))$sdcor[1:3]),
+    DF = c(round(summary(m)$coef[, 3, drop = FALSE], 0), r$Df[2:4]),
+    SE = c(summary(m)$coef[, 2, drop = FALSE], NA, NA, NA),
     Test = c(rep("\\textit{t}", 4), "$\\chi^2$", "$\\chi^2$", "$\\chi^2$"),
-    Test.value = c(summary(m.simplex)$coef[, 4, drop = FALSE], r.simplex$LRT[2:4]),
-    p.value = c(summary(m.simplex)$coef[, 5, drop = FALSE], 
-                r.simplex$`Pr(>Chisq)`[2:4])
+    Test.value = c(summary(m)$coef[, 4, drop = FALSE], r$LRT[2:4]),
+    p.value = c(summary(m)$coef[, 5, drop = FALSE], r$`Pr(>Chisq)`[2:4])
   )
-
-spec.ab.rmse.tab.anova.tab <-
-  data.frame(
-    Response = "Forecast error\nof target\nabundances",
+  
+  tab2 <- data.frame(
+    Response = "Forecast\nerror of\ntaxa\nabundances",
+    forecast.method = m.name,
     Covariate = c("Richness", "Light (decreasing)", "Richness:Light"),
     Type = "Sum of\nsquares",
-    Estimate = anova(m.simplex)[, 1],
-    DF = paste(anova(m.simplex)[, 3], round(anova(m.simplex)[, 4], 1), sep = ", "),
+    Estimate = anova(m)[, 1],
+    DF = paste(anova(m)[, 3], round(anova(m)[, 4], 1), sep = ", "),
     SE = NA,
     Test = "\\textit{F}",
-    Test.value = anova(m.simplex)[, 5],
-    p.value = anova(m.simplex)[, 6]
+    Test.value = anova(m)[, 5],
+    p.value = anova(m)[, 6]
+  )
+  
+  tab1 <- rbind(tab1, tab2)
+  newdat.taxa <- rbind(newdat.taxa, newdat.t2)
+  tab.taxa <- rbind(tab.taxa, tab1)
+}
+
+
+
+
+#### -----------------------------------------------------------------------
+#### Table for species forecasts regression (Supplementary): split analysis
+#### -----------------------------------------------------------------------
+
+conf.int.c <- confint(m.simplex.constant)
+conf.int.c.coef <- conf.int.c[5:6, ]
+conf.int.c.coef <- round(conf.int.c.coef, 3)
+conf.int.c.coef <- apply(conf.int.c.coef, 1, paste, collapse = " - ")
+coefs.c <- coef(summary(m.simplex.constant))
+
+split.tab.1 <-
+  data.frame(
+    Light = "Constant",
+    Covariate = c("Intercept", "log10(Richness)"),
+    Estimate = fixef(m.simplex.constant),
+    CI = conf.int.c.coef,
+    SS = c(NA, anova(m.simplex.constant)[, 1]),
+    DF = c(NA, paste(
+      anova(m.simplex.constant)[, 3], round(anova(m.simplex.constant)[, 4], 1), sep = ", "
+    )),
+    F.value = c(NA, anova(m.simplex.constant)[, 5]),
+    p.value = c(NA, anova(m.simplex.constant)[, 6])
   )
 
-spec.ab.rmse.tab <-
-  rbind(spec.ab.rmse.tab, spec.ab.rmse.tab.anova.tab)
+conf.int.d <- confint(m.simplex.decreasing)
+conf.int.d.coef <- conf.int.d[5:6, ]
+conf.int.d.coef <- round(conf.int.d.coef, 3)
+conf.int.d.coef <- apply(conf.int.d.coef, 1, paste, collapse = " - ")
+coefs.d <- coef(summary(m.simplex.decreasing))
+
+split.tab.2 <-
+  data.frame(
+    Light = "Decreasing",
+    Covariate = c("Intercept", "log10(Richness)"),
+    Estimate = fixef(m.simplex.decreasing),
+    CI = conf.int.d.coef,
+    SS = c(NA, anova(m.simplex.decreasing)[, 1]),
+    DF = c(NA, paste(
+      anova(m.simplex.decreasing)[, 3], round(anova(m.simplex.decreasing)[, 4], 1), sep = ", "
+    )),
+    F.value = c(NA, anova(m.simplex.decreasing)[, 5]),
+    p.value = c(NA, anova(m.simplex.decreasing)[, 6])
+  )
 
 
-
-#### -----------------------------------------------------------------------
-#### Table for species forecasts regression (Supplementary): all forecasts
-#### -----------------------------------------------------------------------
-
-# needed? it's basically the robustness analysis, which includes additional
-# information
+split.tab <- rbind(split.tab.1, split.tab.2)
 
 #### ------------------------------------------------------------
 #### Table for simplex community biomass regression (Main text)
 #### ------------------------------------------------------------
 
-r.simplex.bio <- rand(m.simplex.bio)
+r.simplex.bio <- rand(m.simplex.bio.no.int)
 
-bio.rmse.tab <-
-  data.frame(
-    Response = "Forecast error\nof community\nbiomass",
-    Covariate = c(
-      "Intercept",
-      "Richness",
-      "Light (decreasing)",
-      "Richness:Light",
-      "Composition",
-      "Incubator"
-    ),
-    Type = c(
-      rep("Fixed\neffect", 4),
-      "Random\nintercept",
-      "Random\nintercept"
-    ),
-    Estimate = c(fixef(m.simplex.bio), as.data.frame(VarCorr(m.simplex.bio))$sdcor[1:2]),
-    DF = c(round(summary(m.simplex.bio)$coef[, 3, drop = FALSE], 0), r.simplex.bio$Df[2:3]),
-    SE = c(summary(m.simplex.bio)$coef[, 2, drop = FALSE], NA, NA),
-    Test = c(rep("\\textit{t}", 4), "$\\chi^2$", "$\\chi^2$"),
-    Test.value = c(summary(m.simplex.bio)$coef[, 4, drop = FALSE], r.simplex.bio$LRT[2:3]),
-    p.value = c(summary(m.simplex.bio)$coef[, 5, drop = FALSE], 
-                r.simplex.bio$`Pr(>Chisq)`[2:3])
+bio.rmse.tab <- data.frame(
+  Response = "Forecast error\nof community\nbiomass",
+  Covariate = c(
+    "Intercept",
+    "Richness",
+    "Light (decreasing)",
+    "Composition",
+    "Incubator"
+  ),
+  Type = c(
+    rep("Fixed\neffect", 3),
+    "Random\nintercept",
+    "Random\nintercept"
+  ),
+  Estimate = c(fixef(m.simplex.bio.no.int), as.data.frame(VarCorr(
+    m.simplex.bio.no.int
+  ))$sdcor[1:2]),
+  DF = c(round(summary(
+    m.simplex.bio.no.int
+  )$coef[, 3, drop = FALSE], 0), r.simplex.bio$Df[2:3]),
+  SE = c(summary(m.simplex.bio.no.int)$coef[, 2, drop = FALSE], NA, NA),
+  Test = c(rep("\\textit{t}", 3), "$\\chi^2$", "$\\chi^2$"),
+  Test.value = c(summary(m.simplex.bio.no.int)$coef[, 4, drop = FALSE], r.simplex.bio$LRT[2:3]),
+  p.value = c(
+    summary(m.simplex.bio.no.int)$coef[, 5, drop = FALSE],
+    r.simplex.bio$`Pr(>Chisq)`[2:3]
   )
+)
 
-bio.rmse.anova.tab <-
-  data.frame(
-    Response = "Forecast error\nof community\nbiomass",
-    Covariate = c("Richness", "Light (decreasing)", "Richness:Light"),
-    Type = "Sum of\nsquares",
-    Estimate = anova(m.simplex.bio)[, 1],
-    DF = paste(anova(m.simplex.bio)[, 3], round(anova(m.simplex.bio)[, 4], 1),
-               sep = ", "),
-    SE = NA,
-    Test = "\\textit{F}",
-    Test.value = anova(m.simplex.bio)[, 5],
-    p.value = anova(m.simplex.bio)[, 6]
-  )
+bio.rmse.anova.tab <- data.frame(
+  Response = "Forecast error\nof community\nbiomass",
+  Covariate = c("Richness", "Light (decreasing)"),
+  Type = "Sum of\nsquares",
+  Estimate = anova(m.simplex.bio.no.int)[, 1],
+  DF = paste(anova(m.simplex.bio.no.int)[, 3], round(anova(
+    m.simplex.bio.no.int
+  )[, 4], 1), sep = ", "),
+  SE = NA,
+  Test = "\\textit{F}",
+  Test.value = anova(m.simplex.bio.no.int)[, 5],
+  p.value = anova(m.simplex.bio.no.int)[, 6]
+)
 
 bio.rmse.tab <- rbind(bio.rmse.tab, bio.rmse.anova.tab)
 
@@ -1750,26 +2083,47 @@ tab.bio <- data.frame()
 df <- complete.forecasts %>%
   dplyr::filter(Target == "Total_biomass")
 
-newdat.b <-
-  expand.grid(
-    median_richness_center = seq(
-      min(df$median_richness_center),
-      max(df$median_richness_center),
-      length.out = 100
-    ),
-    light_treatment = unique(df$light_treatment)
-  )
+newdat.b <- expand.grid(
+  median_richness_center = seq(
+    min(df$median_richness_center),
+    max(df$median_richness_center),
+    length.out = 100
+  ),
+  light_treatment = unique(df$light_treatment)
+)
 
 for (m.name in names(m.bio.list)) {
   m <- m.bio.list[[m.name]]
-  newdat.b2 <-
-    conf_interval(m, newdat.b, "RMSE", "Forecast error (RMSE)")
+  newdat.b2 <- conf_interval(m, newdat.b, "RMSE", "Forecast error (RMSE)")
   newdat.b2$forecast.method <- m.name
   
   r <- rand(m)
   
-  tab1 <-
-    data.frame(
+  if (length(fixef(m)) == 3) {
+    tab1 <- data.frame(
+      Response = "Forecast\nerror of\ncommunity\nbiomass",
+      forecast.method = m.name,
+      Covariate = c(
+        "Intercept",
+        "Richness",
+        "Light (decreasing)",
+        "Composition",
+        "Incubator"
+      ),
+      Type = c(
+        rep("Fixed\neffect", 3),
+        "Random\nintercept",
+        "Random\nintercept"
+      ),
+      Estimate = c(fixef(m), as.data.frame(VarCorr(m))$sdcor[1:2]),
+      DF = c(round(summary(m)$coef[, 3, drop = FALSE], 0), r$Df[2:3]),
+      SE = c(summary(m)$coef[, 2, drop = FALSE], NA, NA),
+      Test = c(NA, rep("\\textit{F}", 2), "$\\chi^2$", "$\\chi^2$"),
+      Test.value = c(NA, anova(m)[, 5], r$LRT[2:3]),
+      p.value = c(NA, anova(m)[, 6], r$`Pr(>Chisq)`[2:3])
+    )
+  } else {
+    tab1 <- data.frame(
       Response = "Forecast\nerror of\ncommunity\nbiomass",
       forecast.method = m.name,
       Covariate = c(
@@ -1788,26 +2142,12 @@ for (m.name in names(m.bio.list)) {
       Estimate = c(fixef(m), as.data.frame(VarCorr(m))$sdcor[1:2]),
       DF = c(round(summary(m)$coef[, 3, drop = FALSE], 0), r$Df[2:3]),
       SE = c(summary(m)$coef[, 2, drop = FALSE], NA, NA),
-      Test = c(rep("\\textit{t}", 4), "$\\chi^2$", "$\\chi^2$"),
-      Test.value = c(summary(m)$coef[, 4, drop = FALSE], r$LRT[2:3]),
-      p.value = c(summary(m)$coef[, 5, drop = FALSE], r$`Pr(>Chisq)`[2:3])
+      Test = c(NA, rep("\\textit{F}", 3), "$\\chi^2$", "$\\chi^2$"),
+      Test.value = c(NA, anova(m)[, 5], r$LRT[2:3]),
+      p.value = c(NA, anova(m)[, 6], r$`Pr(>Chisq)`[2:3])
     )
+  }
   
-  tab2 <-
-    data.frame(
-      Response = "Forecast\nerror of\ncommunity\nbiomass",
-      forecast.method = m.name,
-      Covariate = c("Richness", "Light (decreasing)", "Richness:Light"),
-      Type = "Sum of\nsquares",
-      Estimate = anova(m)[, 1],
-      DF = paste(anova(m)[, 3], round(anova(m)[, 4], 1), sep = ", "),
-      SE = NA,
-      Test = "\\textit{F}",
-      Test.value = anova(m)[, 5],
-      p.value = anova(m)[, 6]
-    )
-  
-  tab1 <- rbind(tab1, tab2)
   newdat.bio <- rbind(newdat.bio, newdat.b2)
   tab.bio <- rbind(tab.bio, tab1)
 }
@@ -1823,62 +2163,71 @@ tab.oxy <- data.frame()
 df <- complete.forecasts %>%
   dplyr::filter(Target == "Mean_oxygen")
 
-newdat.o <-
-  expand.grid(
-    median_richness_center = seq(
-      min(df$median_richness_center),
-      max(df$median_richness_center),
-      length.out = 100
-    ),
-    light_treatment = unique(df$light_treatment)
-  )
+newdat.o <- expand.grid(
+  median_richness_center = seq(
+    min(df$median_richness_center),
+    max(df$median_richness_center),
+    length.out = 100
+  ),
+  light_treatment = unique(df$light_treatment)
+)
 
 for (m.name in names(m.oxy.list)) {
   m <- m.oxy.list[[m.name]]
-  newdat.o2 <-
-    conf_interval(m, newdat.o, "RMSE", "Forecast error (RMSE)")
+  newdat.o2 <- conf_interval(m, newdat.o, "RMSE", "Forecast error (RMSE)")
   newdat.o2$forecast.method <- m.name
   
   r <- rand(m)
   
-  tab1 <- data.frame(
-    Response = "Forecast\nerror\nof mean\noxygen",
-    forecast.method = m.name,
-    Covariate = c(
-      "Intercept",
-      "Richness",
-      "Light (decreasing)",
-      "Richness:Light",
-      "Composition",
-      "Incubator"
-    ),
-    Type = c(
-      rep("Fixed\neffect", 4),
-      "Random\nintercept",
-      "Random\nintercept"
-    ),
-    Estimate = c(fixef(m), as.data.frame(VarCorr(m))$sdcor[1:2]),
-    DF = c(round(summary(m)$coef[, 3, drop = FALSE], 0), r$Df[2:3]),
-    SE = c(summary(m)$coef[, 2, drop = FALSE], NA, NA),
-    Test = c(rep("\\textit{t}", 4), "$\\chi^2$", "$\\chi^2$"),
-    Test.value = c(summary(m)$coef[, 4, drop = FALSE], r$LRT[2:3]),
-    p.value = c(summary(m)$coef[, 5, drop = FALSE], r$`Pr(>Chisq)`[2:3])
-  )
+  if (length(fixef(m)) == 3) {
+    tab1 <- data.frame(
+      Response = "Forecast\nerror\nof mean\noxygen",
+      forecast.method = m.name,
+      Covariate = c(
+        "Intercept",
+        "Richness",
+        "Light (decreasing)",
+        "Composition",
+        "Incubator"
+      ),
+      Type = c(
+        rep("Fixed\neffect", 3),
+        "Random\nintercept",
+        "Random\nintercept"
+      ),
+      Estimate = c(fixef(m), as.data.frame(VarCorr(m))$sdcor[1:2]),
+      DF = c(round(summary(m)$coef[, 3, drop = FALSE], 0), r$Df[2:3]),
+      SE = c(summary(m)$coef[, 2, drop = FALSE], NA, NA),
+      Test = c(NA, rep("\\textit{F}", 2), "$\\chi^2$", "$\\chi^2$"),
+      Test.value = c(NA, anova(m)[, 5], r$LRT[2:3]),
+      p.value = c(NA, anova(m)[, 6], r$`Pr(>Chisq)`[2:3])
+    )
+  } else {
+    tab1 <- data.frame(
+      Response = "Forecast\nerror\nof mean\noxygen",
+      forecast.method = m.name,
+      Covariate = c(
+        "Intercept",
+        "Richness",
+        "Light (decreasing)",
+        "Richness:Light",
+        "Composition",
+        "Incubator"
+      ),
+      Type = c(
+        rep("Fixed\neffect", 4),
+        "Random\nintercept",
+        "Random\nintercept"
+      ),
+      Estimate = c(fixef(m), as.data.frame(VarCorr(m))$sdcor[1:2]),
+      DF = c(round(summary(m)$coef[, 3, drop = FALSE], 0), r$Df[2:3]),
+      SE = c(summary(m)$coef[, 2, drop = FALSE], NA, NA),
+      Test = c(NA, rep("\\textit{F}", 3), "$\\chi^2$", "$\\chi^2$"),
+      Test.value = c(NA, anova(m)[, 5], r$LRT[2:3]),
+      p.value = c(NA, anova(m)[, 6], r$`Pr(>Chisq)`[2:3])
+    )
+  }
   
-  tab2 <- data.frame(
-    Response = "Forecast\nerror\nof mean\noxygen",
-    forecast.method = m.name,
-    Covariate = c("Richness", "Light (decreasing)", "Richness:Light"),
-    Type = "Sum of\nsquares",
-    Estimate = anova(m)[, 1],
-    DF = paste(anova(m)[, 3], round(anova(m)[, 4], 1), sep = ", "),
-    SE = NA,
-    Test = "\\textit{F}",
-    Test.value = anova(m)[, 5],
-    p.value = anova(m)[, 6]
-  )
-  
-  tab1 <- rbind(tab1, tab2)
   newdat.oxy <- rbind(newdat.oxy, newdat.o2)
   tab.oxy <- rbind(tab.oxy, tab1)
 }
@@ -1908,8 +2257,7 @@ newdat.a.b <- with(
 
 for (m.name in names(m.aggr.bio.list)) {
   m <- m.aggr.bio.list[[m.name]]
-  newdat.a.b2 <-
-    conf_interval(m, newdat.a.b, "meanRMSE", "Mean forecast error (RMSE)")
+  newdat.a.b2 <- conf_interval(m, newdat.a.b, "meanRMSE", "Mean forecast error (RMSE)")
   newdat.a.b2$forecast.method <- m.name
   
   em <- emmeans(m, c("aggregatedMeasure"), by = "light_treatment")
@@ -1919,8 +2267,32 @@ for (m.name in names(m.aggr.bio.list)) {
   
   r <- rand(m)
   
-  tab1 <-
-    data.frame(
+  if (length(fixef(m)) == 4) {
+    tab1 <- data.frame(
+      Response = "Mean forecast\nerror of\nabundances\n \nVersus\n \nForecast error\nof community\nbiomass",
+      forecast.method = m.name,
+      Covariate = c(
+        "Intercept",
+        "Richness",
+        "Light (decreasing)",
+        "Measure (biomass)",
+        "Bottle",
+        "Incubator"
+      ),
+      Type = c(
+        rep("Fixed\neffect", 4),
+        "Random\nintercept",
+        "Random\nintercept"
+      ),
+      Estimate = c(fixef(m), as.data.frame(VarCorr(m))$sdcor[1:2]),
+      DF = c(round(summary(m)$coef[, 3, drop = FALSE], 0), r$Df[2:3]),
+      SE = c(summary(m)$coef[, 2, drop = FALSE], NA, NA),
+      Test = c(NA, rep("\\textit{F}", 3), "$\\chi^2$", "$\\chi^2$"),
+      Test.value = c(NA, anova(m)[, 5], r$LRT[2:3]),
+      p.value = c(NA, anova(m)[, 6], r$`Pr(>Chisq)`[2:3])
+    )
+  } else {
+    tab1 <- data.frame(
       Response = "Mean forecast\nerror of\nabundances\n \nVersus\n \nForecast error\nof community\nbiomass",
       forecast.method = m.name,
       Covariate = c(
@@ -1929,46 +2301,23 @@ for (m.name in names(m.aggr.bio.list)) {
         "Light (decreasing)",
         "Measure (biomass)",
         "Richness:Light",
-        "Richness:Measure",
-        "Light:Measure",
         "Bottle",
         "Incubator"
       ),
       Type = c(
-        rep("Fixed\neffect", 7),
+        rep("Fixed\neffect", 5),
         "Random\nintercept",
         "Random\nintercept"
       ),
       Estimate = c(fixef(m), as.data.frame(VarCorr(m))$sdcor[1:2]),
       DF = c(round(summary(m)$coef[, 3, drop = FALSE], 0), r$Df[2:3]),
       SE = c(summary(m)$coef[, 2, drop = FALSE], NA, NA),
-      Test = c(rep("\\textit{t}", 7), "$\\chi^2$", "$\\chi^2$"),
-      Test.value = c(summary(m)$coef[, 4, drop = FALSE], r$LRT[2:3]),
-      p.value = c(summary(m)$coef[, 5, drop = FALSE], r$`Pr(>Chisq)`[2:3])
+      Test = c(NA, rep("\\textit{F}", 4), "$\\chi^2$", "$\\chi^2$"),
+      Test.value = c(NA, anova(m)[, 5], r$LRT[2:3]),
+      p.value = c(NA, anova(m)[, 6], r$`Pr(>Chisq)`[2:3])
     )
+  }
   
-  tab2 <-
-    data.frame(
-      Response = "Mean forecast\nerror of\nabundances\n \nVersus\n \nForecast error\nof community\nbiomass",
-      forecast.method = m.name,
-      Covariate = c(
-        "Richness",
-        "Light (decreasing)",
-        "Measure (biomass)",
-        "Richness:Light",
-        "Richness:Measure",
-        "Light:Measure"
-      ),
-      Type = "Sum of\nsquares",
-      Estimate = anova(m)[, 1],
-      DF = paste(anova(m)[, 3], round(anova(m)[, 4], 1), sep = ", "),
-      SE = NA,
-      Test = "\\textit{F}",
-      Test.value = anova(m)[, 5],
-      p.value = anova(m)[, 6]
-    )
-  
-  tab1 <- rbind(tab1, tab2)
   newdat.aggr.bio <- rbind(newdat.aggr.bio, newdat.a.b2)
   tab.aggr.bio <- rbind(tab.aggr.bio, tab1)
 }
@@ -1997,8 +2346,7 @@ newdat.ox <- with(
 
 for (m.name in names(m.aggr.oxy.list)) {
   m <- m.aggr.oxy.list[[m.name]]
-  newdat.ox2 <-
-    conf_interval(m, newdat.ox, "meanRMSE", "Mean forecast error (RMSE)")
+  newdat.ox2 <- conf_interval(m, newdat.ox, "meanRMSE", "Mean forecast error (RMSE)")
   newdat.ox2$forecast.method <- m.name
   
   em <- emmeans(m, c("aggregatedMeasure"), by = "light_treatment")
@@ -2008,56 +2356,81 @@ for (m.name in names(m.aggr.oxy.list)) {
   
   r <- rand(m)
   
-  tab1 <-
-    data.frame(
+  if (length(fixef(m)) == 4) {
+    tab1 <- data.frame(
       Response = "Mean forecast\nerror of\nabundances\n \nVersus\n \nForecast error\nof mean\noxygen\nconcentration",
       forecast.method = m.name,
       Covariate = c(
         "Intercept",
         "Richness",
         "Light (decreasing)",
-        "Measure (oxygen)",
-        "Richness:Light",
-        "Richness:Measure",
-        "Light:Measure",
+        "Measure (biomass)",
         "Bottle",
         "Incubator"
       ),
       Type = c(
-        rep("Fixed\neffect", 7),
+        rep("Fixed\neffect", 4),
         "Random\nintercept",
         "Random\nintercept"
       ),
       Estimate = c(fixef(m), as.data.frame(VarCorr(m))$sdcor[1:2]),
       DF = c(round(summary(m)$coef[, 3, drop = FALSE], 0), r$Df[2:3]),
       SE = c(summary(m)$coef[, 2, drop = FALSE], NA, NA),
-      Test = c(rep("\\textit{t}", 7), "$\\chi^2$", "$\\chi^2$"),
-      Test.value = c(summary(m)$coef[, 4, drop = FALSE], r$LRT[2:3]),
-      p.value = c(summary(m)$coef[, 5, drop = FALSE], r$`Pr(>Chisq)`[2:3])
+      Test = c(NA, rep("\\textit{F}", 3), "$\\chi^2$", "$\\chi^2$"),
+      Test.value = c(NA, anova(m)[, 5], r$LRT[2:3]),
+      p.value = c(NA, anova(m)[, 6], r$`Pr(>Chisq)`[2:3])
     )
-  
-  tab2 <-
-    data.frame(
+  } else if (m.name == "Multiview EDM") {
+    tab1 <- data.frame(
       Response = "Mean forecast\nerror of\nabundances\n \nVersus\n \nForecast error\nof mean\noxygen\nconcentration",
       forecast.method = m.name,
       Covariate = c(
+        "Intercept",
         "Richness",
         "Light (decreasing)",
-        "Measure (oxygen)",
-        "Richness:Light",
+        "Measure (biomass)",
         "Richness:Measure",
-        "Light:Measure"
+        "Bottle",
+        "Incubator"
       ),
-      Type = "Sum of\nsquares",
-      Estimate = anova(m)[, 1],
-      DF = paste(anova(m)[, 3], round(anova(m)[, 4], 1), sep = ", "),
-      SE = NA,
-      Test = "\\textit{F}",
-      Test.value = anova(m)[, 5],
-      p.value = anova(m)[, 6]
+      Type = c(
+        rep("Fixed\neffect", 5),
+        "Random\nintercept",
+        "Random\nintercept"
+      ),
+      Estimate = c(fixef(m), as.data.frame(VarCorr(m))$sdcor[1:2]),
+      DF = c(round(summary(m)$coef[, 3, drop = FALSE], 0), r$Df[2:3]),
+      SE = c(summary(m)$coef[, 2, drop = FALSE], NA, NA),
+      Test = c(NA, rep("\\textit{F}", 4), "$\\chi^2$", "$\\chi^2$"),
+      Test.value = c(NA, anova(m)[, 5], r$LRT[2:3]),
+      p.value = c(NA, anova(m)[, 6], r$`Pr(>Chisq)`[2:3])
     )
-  
-  tab1 <- rbind(tab1, tab2)
+  } else {
+    tab1 <- data.frame(
+      Response = "Mean forecast\nerror of\nabundances\n \nVersus\n \nForecast error\nof mean\noxygen\nconcentration",
+      forecast.method = m.name,
+      Covariate = c(
+        "Intercept",
+        "Richness",
+        "Light (decreasing)",
+        "Measure (biomass)",
+        "Richness:Light",
+        "Bottle",
+        "Incubator"
+      ),
+      Type = c(
+        rep("Fixed\neffect", 5),
+        "Random\nintercept",
+        "Random\nintercept"
+      ),
+      Estimate = c(fixef(m), as.data.frame(VarCorr(m))$sdcor[1:2]),
+      DF = c(round(summary(m)$coef[, 3, drop = FALSE], 0), r$Df[2:3]),
+      SE = c(summary(m)$coef[, 2, drop = FALSE], NA, NA),
+      Test = c(NA, rep("\\textit{F}", 4), "$\\chi^2$", "$\\chi^2$"),
+      Test.value = c(NA, anova(m)[, 5], r$LRT[2:3]),
+      p.value = c(NA, anova(m)[, 6], r$`Pr(>Chisq)`[2:3])
+    )
+  }
   newdat.aggr.oxy <- rbind(newdat.aggr.oxy, newdat.ox2)
   tab.aggr.oxy <- rbind(tab.aggr.oxy, tab1)
 }
@@ -2091,6 +2464,43 @@ em.tab.bio <- em.tab.bio %>%
                 p.value)
 
 em.tab <- rbind(em.tab.bio, em.tab.oxy)
+
+
+#### --------------------------------------------------------------------------
+#### Table for marginal means: light vs no light depending on richness
+#### --------------------------------------------------------------------------
+
+
+emmeans.comparison <- function(model, char.model, richness.value) {
+  em.m <- emmeans(
+    model,
+    specs = c("median_richness_center", "light_treatment"),
+    at = list(
+      light_treatment = c("decreasing", "constant"),
+      median_richness_center = richness.value
+    )
+  )
+  test <- pairs(em.m)
+  test <- as.data.frame(test)
+  test$model <- char.model
+  test$contrast <- richness.value
+  # test$richness <- richness.value
+  return(test)
+}
+
+mods <- list(m.simplex, m.multiview, m.arima, m.rf, m.rnn)
+mod.names <- c("Simplex EDM", "Multiview EDM", "ARIMA", "Random Forest", "RNN")
+
+em.tab.rich <- data.frame()
+for (val in c(-2.5, 2.5)) {
+  for (i in 1:length(mods)) {
+    mod <- mods[[i]]
+    mod.name <- mod.names[i]
+    em.mod <- emmeans.comparison(mod, mod.name, val)
+    em.tab.rich <- rbind(em.tab.rich, em.mod)
+  }
+}
+
 ```
 
 
@@ -2100,8 +2510,7 @@ main.tab <- rbind(spec.ab.rmse.tab, bio.rmse.tab)
 
 rownames(main.tab) <- NULL
 
-main.tab$p.value <- ifelse(main.tab$p.value < 0.0001, "<0.0001",
-                           sprintf("%.4f", round(main.tab$p.value, 4)))
+main.tab$p.value <- ifelse(main.tab$p.value < 0.0001, "<0.0001", sprintf("%.4f", round(main.tab$p.value, 4)))
 
 main.tab <- main.tab %>%
   dplyr::mutate(
@@ -2132,11 +2541,14 @@ main.tab %>%
     caption = "Results of linear mixed models investigating the effects of 
     species richness and light on forecast errors of taxa and community biomass. 
     This table is an extended version of Table 1 in the main text and includes 
-    both the regression tables and the analysis of variance (Type III) tables of 
-    the models. The models included median centered richness, light treatment 
-    and their interaction as fixed effects. The random intercepts were included 
-    for the bottles, incubators and the targets (i.e. taxa). Forecast error is 
-    based on forecasts computed with Simplex EDM.",
+    both the regression tables and the analysis of variance tables of the models 
+    (top part of the table: Type III ANOVA; bottom part of the table Type II ANOVA). 
+    The models included median centered richness, light treatment and their 
+    interaction as fixed effects. In the first model, random intercepts were 
+    included for the bottles, incubators and the targets (i.e. taxa). In the 
+    second model, random intercepts were included for composition and incubators. 
+    Forecast error is based on forecasts computed with Simplex EDM. The estimates 
+    for the random intercepts are standard deviations.",
     align = c("lllrrrcrr"),
     escape = F,
     label = "MainTab"
@@ -2150,9 +2562,201 @@ main.tab %>%
   kable_styling(font_size = 7)
 ```
 
+```{r SplitTab}
+rownames(split.tab) <- NULL
+
+split.tab$p.value <- ifelse(split.tab$p.value < 0.0001, "<0.0001",
+                            sprintf("%.4f", round(split.tab$p.value, 4)))
+
+split.tab <- split.tab %>%
+  dplyr::mutate(
+    Estimate = round(Estimate, 3),
+    SS = round(SS, 3),
+    F.value = round(F.value, 3)
+  )
+
+options(knitr.kable.NA = '')
+split.tab %>%
+  mutate_all(linebreak, align = "l") %>%
+  kable(
+    "latex",
+    booktabs = T,
+    digits = 3,
+    col.names = c(
+      "Light",
+      "Covariate",
+      "Estimate",
+      "95\\% CI",
+      "SS",
+      "DF",
+      "\\textit{F}-value",
+      "\\textit{p}-value"
+    ),
+    caption = "Relation between log10-transformed median richness and the 
+    forecast errors of taxa abundances, with the model carried out separately
+    for the constant and the decreasing light conditions (i.e. split analysis).
+    The table includes the estimated coefficients and corresponding 95\\% 
+    confidence intervals, as well as the analysis of variance (Type II) table.
+    The random intercepts were included for the bottles, incubators and the 
+    targets (i.e. taxa), but are not shown in the table.
+    Note that the richness variable
+    was log10-transformed to meet the model assumptions. This was not necessary
+    in the full model (i.e. the non-partitioned model).
+    Forecast error is based on forecasts computed with Simplex EDM.",
+    align = c("llccccrr"),
+    escape = F,
+    label = "SplitTab"
+  ) %>%
+  collapse_rows(
+    columns = c(1),
+    latex_hline = 'custom',
+    custom_latex_hline = c(1),
+    valign = "middle"
+  ) %>%
+  kable_styling(font_size = 7)
+```
 
 
-```{r BiomassRMSEplot, fig.width=10, fig.height=3.5, message=FALSE, warning=FALSE, fig.cap="Relation between species richness and light and the forecast error of community biomass. Relationship between forecast error of oxygen and richness in constant light (yellow) and declining light (blue). Lines display the fit of the linear mixed model, shaded areas denote the 95\\% confidence intervals.", out.width="95%"}
+```{r taxaRMSEplot, fig.width=10, fig.height=3.5, message=FALSE, warning=FALSE, fig.cap="Effects of species richness and light on the forecast error of taxa abundances. Forecasts are for 30 bottles (yellow: constant light, blue: decreasing light) with varying number of taya per bottle (see Figure 1 in the main text). The panels show the results for five different forecasting methods, i.e. ARIMA (Auto-Regressive Integrated Moving Average), Multiview EDM (Empirical Dynamic Modeling), Random Forest, RNN (Recurrent Neural Networks), and Simplex EDM. Lines display the fit of the corresponding linear mixed model, shaded areas denote the 95% confidence intervals. Composition and incubator were included as random intercepts in the linear mixed model.", out.width="95%"}
+
+complete.forecasts %>%
+  dplyr::filter(!(Target %in% c("Total_biomass", "Mean_oxygen"))) %>%
+  ggplot(aes(median_richness_center, RMSE, col = light_treatment)) +
+  geom_ribbon(
+    data = newdat.taxa,
+    aes(
+      ymin = lower,
+      ymax = upper,
+      y = fit,
+      group = light_treatment
+    ),
+    col = NA,
+    fill = "grey",
+    alpha = 0.3
+  ) +
+  geom_line(data = newdat.taxa,
+            linewidth = 1.3,
+            aes(y = fit, group = light_treatment)) +
+  geom_point(size = 2.5, alpha = 0.6) +
+  facet_grid( ~ forecast.method) +
+  labs(x = "Median realized species richness", y = "Taxa abundance\nforecast error (RMSE)", col =
+         "Light conditions") +
+  scale_color_manual(values = c("#C4961A", "#293352"),
+                     aesthetics = c("color", "fill")) +
+  theme_bw() +
+  theme(legend.position = "bottom")
+```
+
+
+```{r TaxaFullTab}
+rownames(tab.taxa) <- NULL
+
+tab.taxa$p.value <- ifelse(tab.taxa$p.value < 0.0001, "<0.0001", sprintf("%.4f", round(tab.taxa$p.value, 4)))
+
+tab.taxa <- tab.taxa %>%
+  dplyr::mutate(
+    Estimate = round(Estimate, 3),
+    SE = round(SE, 3),
+    Test.value = round(Test.value, 3)
+  )
+
+
+options(knitr.kable.NA = '-')
+tab.taxa %>%
+  dplyr::filter(Test != "\\textit{F}") %>%
+  mutate_all(linebreak, align = "l") %>%
+  kable(
+    "latex",
+    booktabs = T,
+    digits = 3,
+    col.names = c(
+      "Response",
+      "Method",
+      "Covariate",
+      "Type",
+      "Estimate",
+      "DF",
+      "SE",
+      "Test",
+      "Value",
+      "\\textit{p}-value"
+    ),
+    caption = "Results of the regressions investigating the effects of species 
+    richness and light on the forecast errors of the taxa abundances (for 
+    different forecast methods). The estimates for the random intercepts are 
+    standard deviations.",
+    align = c("llllrrrcrr"),
+    escape = F,
+    label = "TaxaFullTab"
+  ) %>%
+  collapse_rows(
+    columns = c(1, 2, 4),
+    latex_hline = 'custom',
+    custom_latex_hline = c(1, 4),
+    valign = "middle"
+  ) %>%
+  kable_styling(font_size = 7)
+```
+
+```{r emTabRich}
+rownames(em.tab.rich) <- NULL
+
+em.tab.rich$p.value <- ifelse(em.tab.rich$p.value < 0.0001, "<0.0001",
+                              sprintf("%.4f", round(em.tab.rich$p.value, 4)))
+
+em.tab.rich <- em.tab.rich %>%
+  dplyr::mutate(
+    estimate = round(estimate, 3),
+    SE = round(SE, 3),
+    df = round(df, 3),
+    t.ratio = round(t.ratio, 3),
+  ) %>%
+  rename(richness=contrast)
+
+em.tab.rich$contrast <- "Const. light\nvs.\nDecr. light"
+
+em.tab.rich <- em.tab.rich %>%
+  dplyr::select(contrast, richness, model, estimate, SE, df, t.ratio, p.value)
+
+options(knitr.kable.NA = '')
+em.tab.rich %>%
+  mutate_all(linebreak, align = "l") %>%
+  kable(
+    "latex",
+    booktabs = T,
+    digits = 3,
+    col.names = c(
+      "Contrast",
+      "Centered median\nrichness",
+      "Method",
+      "Estimate",
+      "SE",
+      "DF",
+      "\\textit{t}-value",
+      "\\textit{p}-value"
+    ),
+    caption = "Contrast table comparing the achieved forecast errors of taxa 
+    abundances between the two light levels (decreasing and constant) at the 
+    highest and lowest achieved (centered) median species richness. The estimate 
+    is the difference between the achieved RMSE in the decreasing light setting 
+    and the one achieved in the constant light setting.",
+    align = c("cclrrrrr"),
+    escape = F,
+    label = "emTabRich"
+  ) %>%
+  collapse_rows(
+    columns = c(1,2),
+    latex_hline = 'custom',
+    custom_latex_hline = c(1,2),
+    valign = "middle"
+  ) %>%
+  kable_styling(font_size = 7)
+
+```
+
+
+
+```{r BiomassRMSEplot, fig.width=10, fig.height=3.5, message=FALSE, warning=FALSE, fig.cap="Effects of species richness and light on the forecast error of community biomass. Forecasts are for 30 bottles (yellow: constant light, blue: decreasing light). The panels show the results for five different forecasting methods, i.e. ARIMA (Auto-Regressive Integrated Moving Average), Multiview EDM (Empirical Dynamic Modeling), Random Forest, RNN (Recurrent Neural Networks), and Simplex EDM. Lines display the fit of the corresponding linear mixed model, shaded areas denote the 95% confidence intervals. Composition and incubator were included as random intercepts in the linear mixed model.", out.width="95%"}
 
 complete.forecasts %>%
   dplyr::filter(Target %in% c("Total_biomass")) %>%
@@ -2174,8 +2778,8 @@ complete.forecasts %>%
             aes(y = fit, group = light_treatment)) +
   geom_point(size = 2.5, alpha = 0.6) +
   facet_grid( ~ forecast.method) +
-  labs(x = "Median realized species richness", y = "Forecast error of\ncommunity biomass (RMSE)",
-       col = "Light conditions") +
+  labs(x = "Median realized species richness", y = "Forecast error of\ncommunity biomass (RMSE)", col =
+         "Light conditions") +
   scale_color_manual(values = c("#C4961A", "#293352"),
                      aesthetics = c("color", "fill")) +
   theme_bw() +
@@ -2183,7 +2787,7 @@ complete.forecasts %>%
 ```
 
 
-```{r OxyRMSE, fig.width=10, fig.height=3.5, message=FALSE, warning=FALSE, fig.cap="Relation between species richness and light and the forecast error of dissolved oxygen. Relationship between forecast error of oxygen and richness in constant light (yellow) and declining light (blue). Lines display the fit of the linear mixed model, shaded areas denote the 95\\% confidence intervals.", out.width="95%"}
+```{r OxyRMSE, fig.width=10, fig.height=3.5, message=FALSE, warning=FALSE, fig.cap="Effects of species richness and light on the forecast error of oxygen concentration. Forecasts are for 30 bottles (yellow: constant light, blue: decreasing light). The panels show the results for five different forecasting methods, i.e. ARIMA (Auto-Regressive Integrated Moving Average), Multiview EDM (Empirical Dynamic Modeling), Random Forest, RNN (Recurrent Neural Networks), and Simplex EDM. Lines display the fit of the corresponding linear mixed model, shaded areas denote the 95% confidence intervals. Composition and incubator were included as random intercepts in the linear mixed model.", out.width="95%"}
 complete.forecasts %>%
   dplyr::filter(Target %in% c("Mean_oxygen")) %>%
   ggplot(aes(median_richness_center, RMSE, col = light_treatment)) +
@@ -2204,39 +2808,61 @@ complete.forecasts %>%
             aes(y = fit, group = light_treatment)) +
   geom_point(size = 2.5, alpha = 0.6) +
   facet_grid( ~ forecast.method) +
-  labs(x = "Median realized species richness",
-       y = "Forecast error of\noxygen concentration (RMSE)",
-       col = "Light conditions") +
+  labs(x = "Median realized species richness", y = "Forecast error of\noxygen concentration (RMSE)", col =
+         "Light conditions") +
   scale_color_manual(values = c("#C4961A", "#293352"),
                      aesthetics = c("color", "fill")) +
   theme_bw() +
   theme(legend.position = "bottom")
 ```
 
-```{r BioTab}
-rownames(tab.bio)<- NULL
 
-tab.bio$p.value <- ifelse(tab.bio$p.value<0.0001, "<0.0001",
-                          sprintf("%.4f", round(tab.bio$p.value,4)))
+```{r BioTab}
+rownames(tab.bio) <- NULL
+
+tab.bio$p.value <- ifelse(tab.bio$p.value < 0.0001, "<0.0001", sprintf("%.4f", round(tab.bio$p.value, 4)))
 
 tab.bio <- tab.bio %>%
-  dplyr::mutate(Estimate = round(Estimate,3),
-                SE = round(SE,3),
-                Test.value = round(Test.value,3))
+  dplyr::mutate(
+    Estimate = round(Estimate, 3),
+    SE = round(SE, 3),
+    Test.value = round(Test.value, 3)
+  )
 
 
 options(knitr.kable.NA = '-')
 tab.bio %>%
-  dplyr::filter(Test != "\\textit{F}") %>%
-  mutate_all(linebreak, align="l") %>%
-  kable("latex",
-        booktabs = T, digits = 3,
-        col.names = c("Response", "Method", "Covariate","Type", "Estimate", "DF", "SE", "Test","Value", "\\textit{p}-value"),
-        caption = "Results of the regressions investigating the effects of species richness and light on the forecast errors of the community biomass (for different forecast methods).",
-        align = c("llllrrrcrr"), escape = F,
-        label = "BioTab") %>%
-	collapse_rows(columns = c(1,2,4), latex_hline ='custom', custom_latex_hline = c(1,4),
-                valign = "middle")%>%
+  mutate_all(linebreak, align = "l") %>%
+  kable(
+    "latex",
+    booktabs = T,
+    digits = 3,
+    col.names = c(
+      "Response",
+      "Method",
+      "Covariate",
+      "Type",
+      "Estimate",
+      "DF",
+      "SE",
+      "Test",
+      "Value",
+      "\\textit{p}-value"
+    ),
+    caption = "Results of the regressions investigating the effects of species 
+    richness and light on the forecast errors of the community biomass (for 
+    different forecast methods). The estimates for the random intercepts are 
+    standard deviations.",
+    align = c("llllrrrcrr"),
+    escape = F,
+    label = "BioTab"
+  ) %>%
+  collapse_rows(
+    columns = c(1, 2, 4),
+    latex_hline = 'custom',
+    custom_latex_hline = c(1, 4),
+    valign = "middle"
+  ) %>%
   kable_styling(font_size = 7)
 ```
 
@@ -2244,7 +2870,7 @@ tab.bio %>%
 ```{r OxyTab}
 rownames(tab.oxy) <- NULL
 
-tab.oxy$p.value <- ifelse(tab.oxy$p.value < 0.0001, "<0.0001",
+tab.oxy$p.value <- ifelse(tab.oxy$p.value < 0.0001, "<0.0001", 
                           sprintf("%.4f", round(tab.oxy$p.value, 4)))
 
 tab.oxy <- tab.oxy %>%
@@ -2257,7 +2883,6 @@ tab.oxy <- tab.oxy %>%
 
 options(knitr.kable.NA = '-')
 tab.oxy %>%
-  dplyr::filter(Test != "\\textit{F}") %>%
   mutate_all(linebreak, align = "l") %>%
   kable(
     "latex",
@@ -2277,7 +2902,7 @@ tab.oxy %>%
     ),
     caption = "Results of the regressions investigating the effects of species 
     richness and light on the forecast errors of mean oxygen (for different 
-    forecast methods).",
+    forecast methods). The estimates for the random intercepts are standard deviations.",
     align = c("llllrrrcrr"),
     escape = F,
     label = "OxyTab"
@@ -2292,14 +2917,12 @@ tab.oxy %>%
 ```
 
 
-
 ```{r AggregateTabBio}
 rownames(tab.aggr.bio) <- NULL
 
-tab.aggr.bio$p.value <-
-  ifelse(tab.aggr.bio$p.value < 0.0001,
-         "<0.0001",
-         sprintf("%.4f", round(tab.aggr.bio$p.value, 4)))
+tab.aggr.bio$p.value <- ifelse(tab.aggr.bio$p.value < 0.0001,
+                               "<0.0001",
+                               sprintf("%.4f", round(tab.aggr.bio$p.value, 4)))
 
 tab.aggr.bio <- tab.aggr.bio %>%
   dplyr::mutate(
@@ -2311,7 +2934,6 @@ tab.aggr.bio <- tab.aggr.bio %>%
 
 options(knitr.kable.NA = '-')
 tab.aggr.bio %>%
-  dplyr::filter(Test != "\\textit{F}") %>%
   mutate_all(linebreak, align = "l") %>%
   kable(
     "latex",
@@ -2331,10 +2953,12 @@ tab.aggr.bio %>%
     ),
     caption = "Results of the regressions investigating whether the community 
     level measure total biomass is forecasted better than taxa based forecasts 
-    (here: mean forecast error across all forecasted taxa). The models also 
-    include species richness and light as explanatory variables, as well as all 
-    pairwise interactions. The table reports the results for all considered 
-    forecast methods.",
+    (here: mean forecast error across all forecasted taxa). As explanatory 
+    variables, the model included median centered richness, light treatment 
+    and measure (i.e. total biomass forecasts versus taxa abundance forecasts), 
+    as well as all pairwise interactions. The table reports the results for all 
+    considered forecast methods. The estimates for the random intercepts are 
+    standard deviations.",
     align = c("llllrrrcrr"),
     escape = F,
     label = "AggregateTabBio"
@@ -2352,10 +2976,9 @@ tab.aggr.bio %>%
 ```{r AggregateTabOxy}
 rownames(tab.aggr.oxy) <- NULL
 
-tab.aggr.oxy$p.value <-
-  ifelse(tab.aggr.oxy$p.value < 0.0001,
-         "<0.0001",
-         sprintf("%.4f", round(tab.aggr.oxy$p.value, 4)))
+tab.aggr.oxy$p.value <- ifelse(tab.aggr.oxy$p.value < 0.0001,
+                               "<0.0001",
+                               sprintf("%.4f", round(tab.aggr.oxy$p.value, 4)))
 
 tab.aggr.oxy <- tab.aggr.oxy %>%
   dplyr::mutate(
@@ -2367,7 +2990,6 @@ tab.aggr.oxy <- tab.aggr.oxy %>%
 
 options(knitr.kable.NA = '-')
 tab.aggr.oxy %>%
-  dplyr::filter(Test != "\\textit{F}") %>%
   mutate_all(linebreak, align = "l") %>%
   kable(
     "latex",
@@ -2387,10 +3009,12 @@ tab.aggr.oxy %>%
     ),
     caption = "Results of the regressions investigating whether the community 
     level measure mean oxygen concentration is forecasted better than taxa based 
-    forecasts (here: mean forecast error across all forecasted taxa). The models 
-    also include species richness and light as explanatory variables, as well as 
-    all pairwise interactions. The table reports the results for all considered 
-    forecast methods.",
+    forecasts (here: mean forecast error across all forecasted taxa). As 
+    explanatory variables, the model included median centered richness, light 
+    treatment and measure (i.e. oxygen concentration forecasts versus taxa 
+    abundance forecasts), as well as all pairwise interactions. The table 
+    reports the results for all considered forecast methods. The estimates 
+    for the random intercepts are standard deviations.",
     align = c("llllrrrcrr"),
     escape = F,
     label = "AggregateTabOxy"
@@ -2408,7 +3032,7 @@ tab.aggr.oxy %>%
 ```{r ContrastTab}
 rownames(em.tab) <- NULL
 
-em.tab$p.value <- ifelse(em.tab$p.value < 0.0001, "<0.0001",
+em.tab$p.value <- ifelse(em.tab$p.value < 0.0001, "<0.0001", 
                          sprintf("%.4f", round(em.tab$p.value, 4)))
 
 em.tab <- em.tab %>%
@@ -2437,10 +3061,10 @@ em.tab %>%
       "\\textit{p}-value"
     ),
     caption = "Table reporting the differences (i.e. the contrasts) between the 
-    marginal estimated mean of the forecast errors of the community level variables 
-    (total biomas and mean oxygen concentration) and of the mean taxa abundance 
-    forecast error. Also reported are the results of the tests of whether the 
-    estimated differences are different from zero.",
+    marginal estimated mean of the forecast errors of the community level 
+    variables (total biomas and mean oxygen concentration) and of the mean taxa 
+    abundance forecast error. Also reported are the results of the tests of 
+    whether the estimated differences are different from zero.",
     align = c("lllrrrcrr"),
     escape = F,
     label = "ContrastTab"
@@ -2485,43 +3109,46 @@ simplex.forecasts.taxa <- complete.forecasts %>%
 
 ## acf vs RMSE
 
-m.acf.rmse <-
-  lmer(
-    RMSE ~ acf_lag5 * light_treatment + (1 |
-                                           Target) + (1 | bottle) + (1 | incubator),
-    simplex.forecasts.taxa
-  )
+m.acf.rmse <- lmer(
+  RMSE ~ acf_lag5 * light_treatment + (1 | Target) + (1 | bottle) + (1 | incubator),
+  simplex.forecasts.taxa
+)
+m.acf.rmse.no.int <- lmer(
+  RMSE ~ acf_lag5 + light_treatment + (1 | Target) + (1 | bottle) + (1 | incubator),
+  simplex.forecasts.taxa
+)
+
 ## CV vs RMSE
 
-m.cv.rmse <-
-  lmer(
-    RMSE ~ cv.res.log10 * light_treatment + (1 |
-                                               Target) + (1 | bottle) + (1 | incubator),
-    simplex.forecasts.taxa
-  )
+m.cv.rmse <- lmer(
+  RMSE ~ cv.res.log10 * light_treatment + (1 | Target) + (1 | bottle) + (1 | incubator),
+  simplex.forecasts.taxa
+)
+m.cv.rmse.no.int <- lmer(
+  RMSE ~ cv.res.log10 + light_treatment + (1 | Target) + (1 | bottle) + (1 | incubator),
+  simplex.forecasts.taxa
+)
 ### pe vs rmse
 
-m.pe.rmse <-
-  lmer(
-    RMSE ~ pe5 * light_treatment + (1 |
-                                      Target) + (1 | bottle) + (1 | incubator),
-    simplex.forecasts.taxa
-  )
+m.pe.rmse <- lmer(
+  RMSE ~ pe5 * light_treatment + (1 | Target) + (1 | bottle) + (1 | incubator),
+  simplex.forecasts.taxa
+)
+m.pe.rmse.no.int <- lmer(
+  RMSE ~ pe5 + light_treatment + (1 | Target) + (1 | bottle) + (1 | incubator),
+  simplex.forecasts.taxa
+)
 
 # tab
 
-mods <- list(m.acf.rmse, m.cv.rmse, m.pe.rmse)
+mods <- list(m.acf.rmse.no.int, m.cv.rmse.no.int, m.pe.rmse.no.int)
 CoefNams <- c(
   "Autocorrelation\n(lag = 5)",
   "log10-transformed\nCofficient of\nvariation)",
   "Permutation\nentropy"
 )
-CoefNamsShort <- c("ACF (lag 5)",
-                   "log10(CV)",
-                   "PE")
-InteractionNams <- c("ACF:Light",
-                     "log10(CV):Light",
-                     "PE:Light")
+CoefNamsShort <- c("ACF (lag 5)", "log10(CV)", "PE")
+InteractionNams <- c("ACF:Light", "log10(CV):Light", "PE:Light")
 CvAcfPeRmseTab <- data.frame()
 
 for (i in 1:length(mods)) {
@@ -2534,13 +3161,12 @@ for (i in 1:length(mods)) {
       "Intercept",
       CoefNamsShort[i],
       "Light (decreasing)",
-      InteractionNams[i],
       "Target (taxa)",
       "Bottle",
       "Incubator"
     ),
     Type = c(
-      rep("Fixed\neffect", 4),
+      rep("Fixed\neffect", 3),
       "Random\nintercept",
       "Random\nintercept",
       "Random\nintercept"
@@ -2548,14 +3174,14 @@ for (i in 1:length(mods)) {
     Estimate = c(fixef(m), as.data.frame(VarCorr(m))$sdcor[1:3]),
     DF = c(round(summary(m)$coef[, 3, drop = FALSE], 0), r$Df[2:4]),
     SE = c(summary(m)$coef[, 2, drop = FALSE], NA, NA, NA),
-    Test = c(rep("\\textit{t}", 4), "$\\chi^2$", "$\\chi^2$", "$\\chi^2$"),
+    Test = c(rep("\\textit{t}", 3), "$\\chi^2$", "$\\chi^2$", "$\\chi^2$"),
     Test.value = c(summary(m)$coef[, 4, drop = FALSE], r$LRT[2:4]),
     p.value = c(summary(m)$coef[, 5, drop = FALSE], r$`Pr(>Chisq)`[2:4])
   )
   
   t2 <- data.frame(
     MainCovariate = CoefNams[i],
-    Covariate = c(CoefNamsShort[i], "Light (decreasing)", InteractionNams[i]),
+    Covariate = c(CoefNamsShort[i], "Light (decreasing)"),
     Type = "Sum of\nsquares",
     Estimate = anova(m)[, 1],
     DF = paste(anova(m)[, 3], round(anova(m)[, 4], 1), sep = ", "),
@@ -2572,10 +3198,9 @@ for (i in 1:length(mods)) {
 
 rownames(CvAcfPeRmseTab) <- NULL
 
-CvAcfPeRmseTab$p.value <-
-  ifelse(CvAcfPeRmseTab$p.value < 0.0001,
-         "<0.0001",
-         sprintf("%.4f", round(CvAcfPeRmseTab$p.value, 4)))
+CvAcfPeRmseTab$p.value <- ifelse(CvAcfPeRmseTab$p.value < 0.0001,
+                                 "<0.0001",
+                                 sprintf("%.4f", round(CvAcfPeRmseTab$p.value, 4)))
 
 CvAcfPeRmseTab <- CvAcfPeRmseTab %>%
   dplyr::mutate(
@@ -2607,12 +3232,13 @@ CvAcfPeRmseTab %>%
     between forecast error (response variable) and time series metrics. The 
     models were fitted separately for the explanatory variables "autocorrelation" 
     (at lag 5), "log10-transformed coefficient of variation", and "permutation 
-    entropy". This table includes both the regression tables and the analysis of 
-    variance (Type III) tables of the models. The models included the respective 
+    entropy". This table includes both the regression tables and the analysis 
+    of variance (Type II) tables of the models. The models included the respective 
     time series metrics as a covariate, alongside the light conditions and their 
     interaction as fixed effects. The random intercepts were included for the 
     bottles, incubators and the targets (i.e. forecasted taxa). Forecast error 
-    is based on forecasts computed with Simplex EDM.',
+    is based on forecasts computed with Simplex EDM. The estimates for the random 
+    intercepts are standard deviations.',
     align = c("lllrrrcrr"),
     escape = F,
     label = "CvAcfPeRmseTab"
@@ -2630,33 +3256,40 @@ CvAcfPeRmseTab %>%
 ```{r EXPCvAcfPeTab, message=FALSE, warning=FALSE}
 ## acf vs exp
 
-m.acf.exp <-
-  lmer(
-    acf_lag5 ~ median_richness_center * light_treatment +
-      (1 | Target) + (1 | bottle) + (1 | incubator),
-    simplex.forecasts.taxa
-  )
+
+m.acf.exp <- lmer(
+  acf_lag5 ~ median_richness_center * light_treatment + (1 | Target) + (1 | bottle) + (1 | incubator),
+  simplex.forecasts.taxa
+)
+m.acf.exp.no.int <- lmer(
+  acf_lag5 ~ median_richness_center + light_treatment + (1 | Target) + (1 | bottle) + (1 | incubator),
+  simplex.forecasts.taxa
+)
 
 ## cv vs exp
 
-m.cv.exp <-
-  lmer(
-    cv.res.log10 ~ median_richness_center * light_treatment +
-      (1 | Target) + (1 | bottle) + (1 | incubator),
-    simplex.forecasts.taxa
-  )
+m.cv.exp <- lmer(
+  cv.res.log10 ~ median_richness_center * light_treatment + (1 | Target) + (1 | bottle) + (1 | incubator),
+  simplex.forecasts.taxa
+)
+m.cv.exp.no.int <- lmer(
+  cv.res.log10 ~ median_richness_center + light_treatment + (1 | Target) + (1 | bottle) + (1 | incubator),
+  simplex.forecasts.taxa
+)
 ### pe vs rmse
 
-m.pe.exp <-
-  lmer(
-    pe5 ~ median_richness_center * light_treatment +
-      (1 | Target) + (1 | bottle) + (1 | incubator),
-    simplex.forecasts.taxa
-  )
+m.pe.exp <- lmer(
+  pe5 ~ median_richness_center * light_treatment + (1 | Target) + (1 | bottle) + (1 | incubator),
+  simplex.forecasts.taxa
+)
+m.pe.exp.no.int <- lmer(
+  pe5 ~ median_richness_center + light_treatment + (1 | Target) + (1 | bottle) + (1 | incubator),
+  simplex.forecasts.taxa
+)
 
 # tab
 
-mods <- list(m.acf.exp, m.cv.exp, m.pe.exp)
+mods <- list(m.acf.exp.no.int, m.cv.exp.no.int, m.pe.exp.no.int)
 CoefNams <- c(
   "Autocorrelation\n(lag = 5)",
   "log10-transformed\nCofficient of\nvariation)",
@@ -2675,13 +3308,12 @@ for (i in 1:length(mods)) {
       "Intercept",
       "Richness",
       "Light (decreasing)",
-      "Richness:Light",
       "Target (taxa)",
       "Bottle",
       "Incubator"
     ),
     Type = c(
-      rep("Fixed\neffect", 4),
+      rep("Fixed\neffect", 3),
       "Random\nintercept",
       "Random\nintercept",
       "Random\nintercept"
@@ -2689,14 +3321,14 @@ for (i in 1:length(mods)) {
     Estimate = c(fixef(m), as.data.frame(VarCorr(m))$sdcor[1:3]),
     DF = c(round(summary(m)$coef[, 3, drop = FALSE], 0), r$Df[2:4]),
     SE = c(summary(m)$coef[, 2, drop = FALSE], NA, NA, NA),
-    Test = c(rep("\\textit{t}", 4), "$\\chi^2$", "$\\chi^2$", "$\\chi^2$"),
+    Test = c(rep("\\textit{t}", 3), "$\\chi^2$", "$\\chi^2$", "$\\chi^2$"),
     Test.value = c(summary(m)$coef[, 4, drop = FALSE], r$LRT[2:4]),
     p.value = c(summary(m)$coef[, 5, drop = FALSE], r$`Pr(>Chisq)`[2:4])
   )
   
   t2 <- data.frame(
     Response = CoefNams[i],
-    Covariate = c("Richness", "Light (decreasing)", "Richness:Light"),
+    Covariate = c("Richness", "Light (decreasing)"),
     Type = "Sum of\nsquares",
     Estimate = anova(m)[, 1],
     DF = paste(anova(m)[, 3], round(anova(m)[, 4], 1), sep = ", "),
@@ -2713,10 +3345,9 @@ for (i in 1:length(mods)) {
 
 rownames(EXPCvAcfPeTab) <- NULL
 
-EXPCvAcfPeTab$p.value <-
-  ifelse(EXPCvAcfPeTab$p.value < 0.0001,
-         "<0.0001",
-         sprintf("%.4f", round(EXPCvAcfPeTab$p.value, 4)))
+EXPCvAcfPeTab$p.value <- ifelse(EXPCvAcfPeTab$p.value < 0.0001,
+                                "<0.0001",
+                                sprintf("%.4f", round(EXPCvAcfPeTab$p.value, 4)))
 
 EXPCvAcfPeTab <- EXPCvAcfPeTab %>%
   dplyr::mutate(
@@ -2748,12 +3379,12 @@ EXPCvAcfPeTab %>%
     species richness and light on time series metrics (response variables). The 
     models were fitted separately for the response variables "autocorrelation" 
     (at lag 5), "log10-transformed coefficient of variation", and "permutation 
-    entropy". This table includes both the regression tables and the analysis 
-    of variance (Type III) tables of the models. The models included median 
-    centered richness, light treatment and their interaction as fixed effects. 
-    The random intercepts were included for the bottles, incubators and the 
-    targets (i.e. forecasted taxa). Forecast error is based on forecasts 
-    computed with Simplex EDM.',
+    entropy". This table includes both the regression tables and the analysis of 
+    variance (Type II) tables of the models. The models included median centered 
+    richness, light treatment and their interaction as fixed effects. The random 
+    intercepts were included for the bottles, incubators and the targets (i.e. 
+    forecasted taxa). Forecast error is based on forecasts computed with Simplex 
+    EDM. The estimates for the random intercepts are standard deviations.',
     align = c("lllrrrcrr"),
     escape = F,
     label = "EXPCvAcfPeTab"
@@ -2769,72 +3400,69 @@ EXPCvAcfPeTab %>%
 
 
 ```{r Figure2Correlations, fig.height=7, fig.width=12, message=FALSE, warning=FALSE, include=FALSE}
-newdat.m.exp <-
-  expand.grid(
-    median_richness_center = seq(
-      min(simplex.forecasts.taxa$median_richness_center),
-      max(simplex.forecasts.taxa$median_richness_center),
-      length.out = 100
-    ),
-    light_treatment = unique(simplex.forecasts.taxa$light_treatment)
-  )
+newdat.m.exp <- expand.grid(
+  median_richness_center = seq(
+    min(simplex.forecasts.taxa$median_richness_center),
+    max(simplex.forecasts.taxa$median_richness_center),
+    length.out = 100
+  ),
+  light_treatment = unique(simplex.forecasts.taxa$light_treatment)
+)
 
-newdat.m.acf <-
-  expand.grid(
-    acf_lag5 = seq(
-      min(simplex.forecasts.taxa$acf_lag5),
-      max(simplex.forecasts.taxa$acf_lag5),
-      length.out = 100
-    ),
-    light_treatment = unique(simplex.forecasts.taxa$light_treatment)
-  )
+newdat.m.acf <- expand.grid(
+  acf_lag5 = seq(
+    min(simplex.forecasts.taxa$acf_lag5),
+    max(simplex.forecasts.taxa$acf_lag5),
+    length.out = 100
+  ),
+  light_treatment = unique(simplex.forecasts.taxa$light_treatment)
+)
 
-newdat.m.cv <-
-  expand.grid(
-    cv.res.log10 = seq(min(log10(
-      simplex.forecasts.taxa$cv.res
-    )),
-    max(log10(
-      simplex.forecasts.taxa$cv.res
-    )),
-    length.out = 100),
-    light_treatment = unique(simplex.forecasts.taxa$light_treatment)
-  )
+newdat.m.cv <- expand.grid(
+  cv.res.log10 = seq(min(log10(
+    simplex.forecasts.taxa$cv.res
+  )), max(log10(
+    simplex.forecasts.taxa$cv.res
+  )), length.out = 100),
+  light_treatment = unique(simplex.forecasts.taxa$light_treatment)
+)
 
-newdat.m.pe.rmse <-
-  expand.grid(
-    pe5 = seq(
-      min(simplex.forecasts.taxa$pe5),
-      max(simplex.forecasts.taxa$pe5),
-      length.out = 100
-    ),
-    light_treatment = unique(simplex.forecasts.taxa$light_treatment)
-  )
+newdat.m.pe.rmse <- expand.grid(
+  pe5 = seq(
+    min(simplex.forecasts.taxa$pe5),
+    max(simplex.forecasts.taxa$pe5),
+    length.out = 100
+  ),
+  light_treatment = unique(simplex.forecasts.taxa$light_treatment)
+)
 
 
 ## acf vs exp
-newdat.acf.exp <-
-  conf_interval(m.acf.exp, newdat.m.exp, "acf_lag5", "Autocorrelation at lag 5")
+newdat.acf.exp <- conf_interval(m.acf.exp.no.int,
+                                newdat.m.exp,
+                                "acf_lag5",
+                                "Autocorrelation at lag 5")
 
 ## cv vs exp
-newdat.cv.exp <-
-  conf_interval(m.cv.exp, newdat.m.exp, "cv.res.log10", "cv.res.log10")
+newdat.cv.exp <- conf_interval(m.cv.exp.no.int, newdat.m.exp, "cv.res.log10", "cv.res.log10")
 
 ## acf vs RMSE
-newdat.m.acf.rmse <-
-  conf_interval(m.acf.rmse, newdat.m.acf, "RMSE", "Forecast error (RMSE)")
+newdat.m.acf.rmse <- conf_interval(m.acf.rmse.no.int,
+                                   newdat.m.acf,
+                                   "RMSE",
+                                   "Forecast error (RMSE)")
 
 ## CV vs RMSE
-newdat.m.cv.rmse <-
-  conf_interval(m.cv.rmse, newdat.m.cv, "RMSE", "Forecast error (RMSE)")
+newdat.m.cv.rmse <- conf_interval(m.cv.rmse.no.int, newdat.m.cv, "RMSE", "Forecast error (RMSE)")
 
 ### pe vs exp design
-newdat.m.exp <-
-  conf_interval(m.pe.exp, newdat.m.exp, "pe5", "Permutation entropy")
+newdat.m.exp <- conf_interval(m.pe.exp.no.int, newdat.m.exp, "pe5", "Permutation entropy")
 
 ### pe vs rmse
-newdat.m.pe.rmse <-
-  conf_interval(m.pe.rmse, newdat.m.pe.rmse, "RMSE", "Forecast error (RMSE)")
+newdat.m.pe.rmse <- conf_interval(m.pe.rmse.no.int,
+                                  newdat.m.pe.rmse,
+                                  "RMSE",
+                                  "Forecast error (RMSE)")
 
 
 fig2exp.acf <- simplex.forecasts.taxa %>%
@@ -2855,9 +3483,8 @@ fig2exp.acf <- simplex.forecasts.taxa %>%
             size = 1.3,
             aes(y = fit, group = light_treatment)) +
   geom_point(size = 2.5, alpha = 0.6) +
-  labs(x = "Centered median realized species richness", 
-       y = "Autocorrelation at lag 5",
-       col = "Light conditions") +
+  labs(x = "Centered median realized species richness", y = "Autocorrelation at lag 5", col =
+         "Light conditions") +
   theme_bw() +
   theme(legend.position = "none")
 
@@ -2879,9 +3506,8 @@ fig2exp.cv <- simplex.forecasts.taxa %>%
             size = 1.3,
             aes(y = fit, group = light_treatment)) +
   geom_point(size = 2.5, alpha = 0.6) +
-  labs(x = "Centered median realized species richness", 
-       y = "log10(Coefficient of variation CV)",
-       col = "Light conditions") +
+  labs(x = "Centered median realized species richness", y = "log10(Coefficient of variation CV)", col =
+         "Light conditions") +
   theme_bw() +
   theme(legend.position = "bottom")
 
@@ -2903,8 +3529,8 @@ fig2acf.rmse <- simplex.forecasts.taxa %>%
             size = 1.3,
             aes(y = fit, group = light_treatment)) +
   geom_point(size = 2.5, alpha = 0.6) +
-  labs(x = "Autocorrelation at lag 5", y = "Forecast error (RMSE)",
-       col = "Light conditions") +
+  labs(x = "Autocorrelation at lag 5", y = "Forecast error (RMSE)", col =
+         "Light conditions") +
   theme_bw() +
   theme(legend.position = "none")
 
@@ -2951,9 +3577,8 @@ fig2exp.pe <- simplex.forecasts.taxa %>%
             size = 1.3,
             aes(y = fit, group = light_treatment)) +
   geom_point(size = 2.5, alpha = 0.6) +
-  labs(x = "Centered median realized species richness", 
-       y = "Permutation entropy",
-       col = "Light conditions") +
+  labs(x = "Centered median realized species richness", y = "Permutation entropy", col =
+         "Light conditions") +
   theme_bw() +
   theme(legend.position = "none")
 
@@ -2975,8 +3600,7 @@ fig2pe.rmse <- simplex.forecasts.taxa %>%
             size = 1.3,
             aes(y = fit, group = light_treatment)) +
   geom_point(size = 2.5, alpha = 0.6) +
-  labs(y = "Forecast error (RMSE)", x = "Permutation entropy",
-       col = "Light conditions") +
+  labs(y = "Forecast error (RMSE)", x = "Permutation entropy", col = "Light conditions") +
   theme_bw() +
   theme(legend.position = "none")
 
@@ -3437,6 +4061,202 @@ tab.speciesEffects %>%
     strip.text = element_text(color = "black", face = "bold")
   )
 ```
+
+## Standardization using historical data only
+
+
+```{r rmseVShistory, fig.height=8, fig.width=10, message=FALSE, warning=FALSE, out.width="95%", fig.cap='Scatter plot of the RMSE values for when the time series were processed (i.e. detrended, standardized) based on the entire data available against the RMSE values for when the time series were processed using only historic data. RMSE is based on Simplex EDM. Each forecast target is shown in a separate panel, with the colour of the dots indicating the experimental bottle and the shape the light conditions. The black line indicates the identity line, while the grey line (estimate) and the corresponding shaded area (95% CI) are the results of a simple linear regression (fixed effects only).'}
+inSample.complete.forecasts %>%
+  rename(RMSEhist = RMSE, kHist = k) %>%
+  full_join(complete.forecasts) %>%
+  dplyr::filter(forecast.method == "Simplex EDM") %>%
+  ggplot(aes(RMSE, RMSEhist)) +
+  geom_abline(intercept = 0, slope = 1) +
+  geom_smooth(method = "lm", col = "darkgrey") +
+  geom_point(aes(col = bottle, shape = light_treatment)) +
+  facet_wrap( ~ Target, scales = "free") +
+  theme_bw() +
+  labs(x = "RMSE (Time series processed based on entire data)",
+       y = "RMSE (Time series processed based on historic data)",
+       shape = "Light conditions",
+       col = "Bottle")
+```
+
+```{r robustnessInSampleDetrend, fig.width=10, fig.height=6, message=FALSE, warning=FALSE, fig.cap='Robustness analysis figure investigating the effects of the standardization using only historical data (instead of the entire time series) on the main results. The relation between biodiversity, light and forecast error is shown for different species richness variables and the different forecast methods. The figure depicts the coefficient estimates for regressions between the taxa abundance forecast errors (response) and the covariates "species richness" and "light conditions", as specified by the panel labels. The dots are the estimates and the corresponding error-bars are the 95\\% CI. The colour specifies the used forecast method and the x-axis specifies the used species richness variable.', out.width="95%"}
+formula <- as.formula(
+  paste0(
+    "RMSE ~ ",
+    "richness_var",
+    "*light_treatment + (1|Target) + (1|bottle) + (1|incubator)"
+  )
+)
+rich_vars2 <- list(
+  "realized_richness_center",
+  "median_richness_center",
+  "mean_richness_center",
+  "richness"
+)
+fore.methods <- list("Multiview EDM", "Simplex EDM", "RNN", "ARIMA", "Random Forest")
+
+tab <- robustnessFunction(rich_vars2,
+                          fore.methods,
+                          inSample.complete.forecasts,
+                          formula,
+                          phases = F)
+
+residuals <- do.call("rbind", map(tab, 2))
+tab.robust.main <- do.call("rbind", map(tab, 1))
+
+tab.robust.main <- tab.robust.main %>%
+  mutate(
+    method = ifelse(method == "RNN", "Recurrent Neural Networks", method),
+    richness_var = case_when(
+      richness_var == "mean_richness_center" ~ "Mean richness",
+      richness_var == "median_richness_center" ~
+        "Median richness",
+      richness_var == "realized_richness_center" ~
+        "Minimal richness",
+      richness_var == "richness" ~ "Planned richness"
+    ),
+    term = case_when(
+      term == "(Intercept)" ~ "Intercept",
+      term == "light_treatmentdecreasing" ~ "Light conditions (decreasing)",
+      term == "richness_var" ~ "Species richness",
+      term == "richness_var:light_treatmentdecreasing" ~
+        "Interaction: light conditions and species richness"
+    ),
+    term = factor(
+      term,
+      levels = c(
+        "Intercept",
+        "Light conditions (decreasing)",
+        "Species richness",
+        "Interaction: light conditions and species richness"
+      )
+    )
+  )
+
+tab.robust.main %>%
+  ggplot(aes(richness_var, estimate, col = method)) +
+  geom_hline(yintercept = 0, linetype = 2) +
+  geom_errorbar(
+    aes(ymin = conf.low, ymax = conf.high),
+    width = 0.2,
+    position = position_dodge(width = 0.4)
+  ) +
+  geom_point(position = position_dodge(width = 0.4)) +
+  facet_wrap( ~ term, scales = "free") +
+  labs(col = "Forecast method",
+       x = "Used species richness variable",
+       y = "Coeffecient estimates + 95% CI",
+       title = "Robustness analyses: standardization using historical data only") +
+  scale_color_brewer(palette = "Dark2", aesthetics = c("fill", "colour")) +
+  theme_bw() +
+  theme(
+    legend.position = "bottom",
+    strip.background = element_rect(fill = "white"),
+    strip.text = element_text(color = "black", face = "bold"))
+```
+
+
+
+## Forecast error evaluation on original and transformed scale
+
+
+```{r rmseVSbackrmse, fig.height=8, fig.width=10, warning=FALSE, message=FALSE, out.width="95%", fig.cap='Scatter plot of the RMSE values for the forecasts left on the transformed scale against the RMSE values for the back-transformed forecasts (i.e. the original scale). RMSE is based on Simplex EDM. Each forecast target is shown in a separate panel, with the colour of the dots indicating the experimental bottle and the shape the light conditions. The black line indicates the identity line, while the grey line (estimate) and the corresponding shaded area (95% CI) are the results of a simple linear regression (fixed effects only).'}
+RMSEBackT.complete.forecasts %>%
+  dplyr::filter(forecast.method == "Simplex EDM") %>%
+  ggplot(aes(RMSE, RMSE_BackT)) +
+  geom_abline(intercept = 0, slope = 1) +
+  geom_smooth(method = "lm", col = "darkgrey") +
+  geom_point(aes(col = bottle, shape = light_treatment)) +
+  facet_wrap(~ Target, scales = "free") +
+  theme_bw() +
+  labs(x = "RMSE (transformed scale)",
+       y = "RMSE (back-transformed forecasts)",
+       shape = "Light conditions",
+       col = "Bottle")
+```
+
+
+```{r robustnessInSampleBackT, fig.width=10, fig.height=6, message=FALSE, warning=FALSE, fig.cap='Robustness analysis figure investigating the effects of calculating the RMSE based on back-transformed forecasts (i.e. on the original scale instead of the transformed scale) on the main results. The relation between biodiversity, light and forecast error is shown for different species richness variables and the different forecast methods. The figure depicts the coefficient estimates for regressions between the taxa abundance forecast errors (response) and the covariates "species richness" and "light conditions", as specified by the panel labels. The dots are the estimates and the corresponding error-bars are the 95\\% CI. The colour specifies the used forecast method and the x-axis specifies the used species richness variable.', out.width="95%"}
+formula <- as.formula(paste0("RMSE_BackT ~ ", "richness_var", 
+                             "*light_treatment + (1 | Target) + (1 | bottle) + (1 | incubator)"))
+rich_vars2 <- list(
+  "realized_richness_center",
+  "median_richness_center",
+  "mean_richness_center",
+  "richness"
+)
+fore.methods <- list("Multiview EDM", "Simplex EDM", "RNN", "ARIMA", "Random Forest")
+
+tab <- robustnessFunction(rich_vars2,
+                          fore.methods,
+                          RMSEBackT.complete.forecasts,
+                          formula,
+                          phases = F)
+
+residuals <- do.call("rbind", map(tab, 2))
+tab.robust.main <- do.call("rbind", map(tab, 1))
+
+tab.robust.main <- tab.robust.main %>%
+  mutate(
+    method = ifelse(method == "RNN", "Recurrent Neural Networks", method),
+    richness_var = case_when(
+      richness_var == "mean_richness_center" ~ "Mean richness",
+      richness_var == "median_richness_center" ~
+        "Median richness",
+      richness_var == "realized_richness_center" ~
+        "Minimal richness",
+      richness_var == "richness" ~ "Planned richness"
+    ),
+    term = case_when(
+      term == "(Intercept)" ~ "Intercept",
+      term == "light_treatmentdecreasing" ~ "Light conditions (decreasing)",
+      term == "richness_var" ~ "Species richness",
+      term == "richness_var:light_treatmentdecreasing" ~
+        "Interaction:light conditions and species richness"
+    ),
+    term = factor(
+      term,
+      levels = c(
+        "Intercept",
+        "Light conditions (decreasing)",
+        "Species richness",
+        "Interaction:light conditions and species richness"
+      )
+    )
+  )
+
+tab.robust.main %>%
+  ggplot(aes(richness_var, estimate, col = method)) +
+  geom_hline(yintercept = 0, linetype = 2) +
+  geom_errorbar(
+    aes(ymin = conf.low, ymax = conf.high),
+    width = 0.2,
+    position = position_dodge(width = 0.4)
+  ) +
+  geom_point(position = position_dodge(width = 0.4)) +
+  facet_wrap( ~ term, scales = "free") +
+  labs(col = "Forecast method",
+       x = "Used species richness variable",
+       y = "Coeffecient estimates + 95% CI",
+       title = "Robustness analyses:error evaluation on original scale") +
+  scale_color_brewer(palette = "Dark2", aesthetics = c("fill", "colour")) +
+  theme_bw() +
+  theme(
+    legend.position = "bottom",
+    strip.background = element_rect(fill = "white"),
+    strip.text = element_text(color = "black", face = "bold")
+  )
+```
+
+
+
+
+
+\newpage
+
 
 
 # Further figures mentioned in the discussion
@@ -4012,44 +4832,17 @@ tab.shannon %>%
 # Versions of R and of the R-packages used
 
 
-```{r rdetails, echo=TRUE}
-# Base packages:
-s <- sessionInfo()
-s1 <- s$basePkgs[1]
+\textbf{\textsf{R} version}: \textsf{R version 4.3.2 (2023-10-31}.
 
-for (i in 2:length(s$basePkgs)) {
-  s1 <- paste(s1, ", ", s$basePkgs[i], sep = "")
-}
+\textbf{Base packages}: \textsf{grid, parallel, stats, graphics, grDevices, utils, datasets, methods, base}.
 
-# Other Packages:
-pack.info <- installed.packages()
-output.packages <- data.frame(pack.info[names(s$otherPkgs),
-                                        c("Package", "Version")])
-
-output.packages <- output.packages %>%
-  dplyr::mutate(Version = ifelse(Package == "flowCore","2.8.0",Version))
-
-s2 <- paste(names(s$otherPkgs)[1],
-            output.packages[names(s$otherPkgs)[1], "Version"])
-
-k <- length(names(s$otherPkgs))
-
-if (k > 1) {
-  for (i in 2:k) {
-    s2 <- paste(s2, ", ",
-                paste(names(s$otherPkgs)[i],
-                      output.packages[names(s$otherPkgs)[i], "Version"]),
-                sep = "")
-  }
-}  
-```
-
-
-\textbf{\textsf{R} version}: \textsf{`r s$R.version$version.string`}.
-
-\textbf{Base packages}: \textsf{`r s1`}.
-
-\textbf{Other packages}: \textsf{`r s2`}.
+\textbf{Other packages}: \textsf{r2glmm 0.1.2, effectsize 0.8.8, lavaan.survey 1.1.3, lavaan 0.6-18, survey 4.4-2, survival 3.7-0,
+LEEF.measurement.bemovi 1.0.0, bemovi 1.0, flowViz 1.66.0, flowCore 2.8.0, keras 2.15.0, reticulate 1.37.0, slider
+0.3.1, broom.mixed 0.2.9.5, GGally 2.2.1, ggh4x 0.2.8, lmerTest 3.1-3, lme4 1.1-35.5, Matrix 1.6-5, caret 6.0-94,
+lattice 0.22-6, here 1.0.1, pals 1.9, kableExtra 1.4.0, rEDM 1.15.4, doParallel 1.0.17, iterators 1.0.14, foreach 1.5.2,
+forecast 8.23.0, pracma 2.4.4, data.table 1.15.4, patchwork 1.2.0, randomForest 4.7-1.1, lubridate 1.9.3, forcats
+1.0.0, stringr 1.5.1, dplyr 1.1.4, purrr 1.0.2, readr 2.1.5, tidyr 1.3.1, tibble 3.2.1, ggplot2 3.5.1, tidyverse 2.0.0,
+ggstance 0.3.7, emmeans 1.10.2, knitr 1.48}.
 
 \textbf{This document was generated on `r format(Sys.time(), "%B %d, %Y at %H:%M")`}.
 

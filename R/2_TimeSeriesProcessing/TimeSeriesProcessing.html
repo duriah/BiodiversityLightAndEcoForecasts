@@ -1577,10 +1577,14 @@ border-radius: 0px;
 and data</h1>
 <div id="dependencies" class="section level2" number="1.1">
 <h2><span class="header-section-number">1.1</span> Dependencies</h2>
-<pre class="r"><code>library(tidyverse)
-library(randomForest)
-library(data.table)
-library(pracma)
+<pre class="r"><code>library(tidyverse)</code></pre>
+<pre><code>## Warning: package &#39;purrr&#39; was built under R version 4.4.2</code></pre>
+<pre><code>## Warning: package &#39;lubridate&#39; was built under R version 4.4.2</code></pre>
+<pre class="r"><code>library(randomForest)</code></pre>
+<pre><code>## Warning: package &#39;randomForest&#39; was built under R version 4.4.2</code></pre>
+<pre class="r"><code>library(data.table)</code></pre>
+<pre><code>## Warning: package &#39;data.table&#39; was built under R version 4.4.2</code></pre>
+<pre class="r"><code>library(pracma)
 library(parallel)
 library(doParallel)
 library(here)
@@ -1943,9 +1947,36 @@ densities.int.detrend.complete &lt;-
                                         by = .(species,bottle,richness,
                                                composition,incubator,
                                                method,light_treatment,ForecastTarget,
-                                               realized_richness)]
-
-DesmoB2.int.detrend.complete &lt;- setDT(DesmoB2.int)[, list(day = day,
+                                               realized_richness)]</code></pre>
+<pre><code>## breakpoint estimate(s): 60.66657 247.3332</code></pre>
+<pre><code>## breakpoint estimate(s): 84.0001 135.3332</code></pre>
+<pre><code>## breakpoint estimate(s): 200.6668 226.3332</code></pre>
+<pre><code>## breakpoint estimate(s): 161.0001 205.3334</code></pre>
+<pre><code>## breakpoint estimate(s): 72.33343 202.9999</code></pre>
+<pre><code>## breakpoint estimate(s): 98.0001 184.3332</code></pre>
+<pre><code>## breakpoint estimate(s): 65.33343 212.3332</code></pre>
+<pre><code>## breakpoint estimate(s): 23.33343 105.0001</code></pre>
+<pre><code>## breakpoint estimate(s): 79.33323 261.3332</code></pre>
+<pre><code>## breakpoint estimate(s): 34.9999 249.6666</code></pre>
+<pre><code>## breakpoint estimate(s): 149.3332 182.0001</code></pre>
+<pre><code>## breakpoint estimate(s): 72.33323 142.3332</code></pre>
+<pre><code>## breakpoint estimate(s): 90.9999 149.3334</code></pre>
+<pre><code>## breakpoint estimate(s): 49.0001 98.0001</code></pre>
+<pre><code>## breakpoint estimate(s): 53.66657 144.6668</code></pre>
+<pre><code>## breakpoint estimate(s): 233.3334 263.6668</code></pre>
+<pre><code>## breakpoint estimate(s): 14.35 91.0001</code></pre>
+<pre><code>## breakpoint estimate(s): 130.6666 191.3334</code></pre>
+<pre><code>## breakpoint estimate(s): 203.0001 214.6668</code></pre>
+<pre><code>## breakpoint estimate(s): 100.3332 188.9999</code></pre>
+<pre><code>## breakpoint estimate(s): 65.33343 88.66657</code></pre>
+<pre><code>## breakpoint estimate(s): 163.3332 233.3332</code></pre>
+<pre><code>## breakpoint estimate(s): 46.66677 140.0001</code></pre>
+<pre><code>## breakpoint estimate(s): 76.9999 126.0001</code></pre>
+<pre><code>## breakpoint estimate(s): 132.9999 160.9999</code></pre>
+<pre><code>## breakpoint estimate(s): 219.3334 228.6668</code></pre>
+<pre><code>## breakpoint estimate(s): 189.0001 219.3334</code></pre>
+<pre><code>## breakpoint estimate(s): 128.3334 272.65</code></pre>
+<pre class="r"><code>DesmoB2.int.detrend.complete &lt;- setDT(DesmoB2.int)[, list(day = day,
                                                           density.original = density,
                                                           biomass.original = biomass,
                                                           density.seg = resids_seg_lm(density, day, c(93,198)),
@@ -2052,6 +2083,12 @@ dd_list &lt;- list(biomass = biomass,
                 water_chem = water_chem,
                 water_chem.int.detrend.complete = water_chem.int.detrend.complete)
 
+if(.Platform$OS.type==&quot;windows&quot;){
+  cr &lt;- 1
+} else {
+  cr &lt;- detectCores()-2
+}
+
 dd_list &lt;- mclapply(dd_list, function(df){
   df &lt;- df %&gt;%
     dplyr::mutate(light = case_when(light_treatment ==&quot;constant&quot; ~ 30,
@@ -2076,7 +2113,44 @@ dd_list &lt;- mclapply(dd_list, function(df){
                                           day &gt;= 93 &amp; day &lt; 198 ~ &quot;decreasing&quot;,
                                           day &gt;= 198 ~ &quot;constant after decrease&quot;))
   df
-}, mc.cores = detectCores()-2)</code></pre>
+}, mc.cores = cr)</code></pre>
+<pre class="r"><code># adding light schedule
+dd_list.int &lt;- list(biomass.int = biomass.int, 
+                    densities.int = densities.int, 
+                    o2.int = o2.int, 
+                    water_chem.int = water_chem.int)
+
+if(.Platform$OS.type==&quot;windows&quot;){
+  cr &lt;- 1
+} else {
+  cr &lt;- detectCores()-2
+}
+
+dd_list.int &lt;- mclapply(dd_list.int, function(df){
+  df &lt;- df %&gt;%
+    dplyr::mutate(light = case_when(light_treatment ==&quot;constant&quot; ~ 30,
+                                    day &gt;= 191 ~ 1,
+                                    184 &lt;= day &amp; day &lt; 191 ~ 2,
+                                    177 &lt;= day &amp; day &lt; 184 ~ 4,
+                                    170 &lt;= day &amp; day &lt; 177 ~ 6,
+                                    163 &lt;= day &amp; day &lt; 170 ~ 8,
+                                    156 &lt;= day &amp; day &lt; 163 ~ 10,
+                                    149 &lt;= day &amp; day &lt; 156 ~ 12,
+                                    142 &lt;= day &amp; day &lt; 149 ~ 14,
+                                    135 &lt;= day &amp; day &lt; 142 ~ 16,
+                                    128 &lt;= day &amp; day &lt; 135 ~ 18,
+                                    121 &lt;= day &amp; day &lt; 128 ~ 20,
+                                    114 &lt;= day &amp; day &lt; 121 ~ 22,
+                                    107 &lt;= day &amp; day &lt; 114 ~ 24,
+                                    100 &lt;= day &amp; day &lt; 107 ~ 26,
+                                    93 &lt;= day &amp; day &lt; 100 ~ 28,
+                                    day &lt; 93 ~ 30),
+                  light_phase = case_when(light_treatment ==&quot;constant&quot; ~ &quot;constant&quot;,
+                                          day &lt; 93 ~ &quot;constant before decrease&quot;,
+                                          day &gt;= 93 &amp; day &lt; 198 ~ &quot;decreasing&quot;,
+                                          day &gt;= 198 ~ &quot;constant after decrease&quot;))
+  df
+}, mc.cores = cr)</code></pre>
 </div>
 <div id="calculating-daily-species-richness-and-their-average-mean-median" class="section level2" number="4.2">
 <h2><span class="header-section-number">4.2</span> Calculating Daily
@@ -2110,14 +2184,20 @@ day_spec_rich &lt;- densities.int %&gt;%
 dd_list$densities.int.detrend.complete &lt;- full_join(dd_list$densities.int.detrend.complete, day_spec_rich)
 dd_list$biomass.int.detrend.complete &lt;- full_join(dd_list$biomass.int.detrend.complete, day_spec_rich)
 dd_list$o2.int.detrend.complete &lt;- full_join(dd_list$o2.int.detrend.complete, day_spec_rich)
-dd_list$water_chem.int.detrend.complete &lt;- full_join(dd_list$water_chem.int.detrend.complete, day_spec_rich)</code></pre>
+dd_list$water_chem.int.detrend.complete &lt;- full_join(dd_list$water_chem.int.detrend.complete, day_spec_rich)
+
+dd_list.int$densities.int &lt;- full_join(dd_list.int$densities.int, day_spec_rich)
+dd_list.int$biomass.int &lt;- full_join(dd_list.int$biomass.int, day_spec_rich)
+dd_list.int$o2.int &lt;- full_join(dd_list.int$o2.int, day_spec_rich)
+dd_list.int$water_chem.int &lt;- full_join(dd_list.int$water_chem.int, day_spec_rich)</code></pre>
 </div>
 </div>
 <div id="saving-processed-data" class="section level1" number="5">
 <h1><span class="header-section-number">5</span> Saving processed
 data</h1>
 <pre class="r"><code>saveRDS(object = dd_list, file = here(&quot;Data/2_TimeSeriesData/Transformed/DensityBiomassTimeSeries.RDS&quot;))
-write_csv(o2_bothMeas, here(&quot;Data/2_TimeSeriesData/Transformed/OxygenBothSensors.csv&quot;))</code></pre>
+write_csv(o2_bothMeas, here(&quot;Data/2_TimeSeriesData/Transformed/OxygenBothSensors.csv&quot;))
+saveRDS(object = dd_list.int, file = here(&quot;Data/2_TimeSeriesData/Transformed/DensityBiomassTimeSeriesIntermediate.RDS&quot;))</code></pre>
 </div>
 
 

@@ -407,6 +407,38 @@ the linearly detrended time series</li>
 for the time series detrended with segmented regression</li>
 </ul></li>
 </ul></li>
+<li><code>4_BackTransformedRMSE</code>: contains the forecast results
+for when the time series forecasts were back-transformed before the RMSE
+was calculated.
+<ul>
+<li>Datasets (each row is forecast result, specific to bottle, forecast
+target and forecast method):
+<ul>
+<li><code>complete.arima.forecasts.RDS</code>: ARIMA forecasts</li>
+<li><code>complete.multiview.forecasts.RDS</code>: multiview EDM
+forecasts</li>
+<li><code>complete.rf.forecasts.RDS</code>: RF forecasts</li>
+<li><code>complete.rnn.forecasts.RDS</code>: RNN forecasts</li>
+<li><code>complete.simplex.forecasts.RDS</code>: simplex EDM
+forecasts</li>
+</ul></li>
+</ul></li>
+<li><code>5_InSampleProcessResults</code>: contains the forecast results
+for when the time series were processed (detrended and standardized)
+with only information from the historic data (i.e. the training data)
+<ul>
+<li>Datasets (each row is forecast result, specific to bottle, forecast
+target and forecast method):
+<ul>
+<li><code>complete.arima.forecasts.RDS</code>: ARIMA forecasts</li>
+<li><code>complete.multiview.forecasts.RDS</code>: multiview EDM
+forecasts</li>
+<li><code>complete.rf.forecasts.RDS</code>: RF forecasts</li>
+<li><code>complete.rnn.forecasts.RDS</code>: RNN forecasts</li>
+<li><code>complete.simplex.forecasts.RDS</code>: simplex EDM
+forecasts</li>
+</ul></li>
+</ul></li>
 <li>Variables in the datasets:
 <ul>
 <li><code>bottle</code>: name of the bottle sampled</li>
@@ -425,6 +457,8 @@ decreasing)</li>
 <li><code>Target</code>: the forecasted target (i.e. taxa, community
 biomass or oxygen)</li>
 <li><code>RMSE</code>: The root mean square error</li>
+<li><code>RMSE_BackT:</code> The root mean square error based on the
+back-transformed forecasts</li>
 <li><code>k</code>: the number of views used in the multiview EDM
 forecast</li>
 <li><code>E</code>: the embedding dimension used in simplex and

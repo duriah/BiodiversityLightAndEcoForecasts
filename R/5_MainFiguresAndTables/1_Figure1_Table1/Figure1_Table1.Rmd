@@ -88,7 +88,7 @@ m.simplex <- lmer(
 
 ## biomass
 formula <-
-  as.formula(RMSE ~ median_richness_center * light_treatment +
+  as.formula(RMSE ~ median_richness_center + light_treatment +
                (1 | composition) + (1 | incubator))
 
 m.simplex.bio <- lmer(
@@ -225,7 +225,7 @@ figure1a + figure1b +
 ```
 
 
-**Figure 1**: Effects of species richness and light on forecast error. The two treatments had interactive effects on forecast error of species abundances (a) but no effect on the forecast error of community biomass (b). Forecasts were computed with Simplex EDM, and forecast error was calculated as root mean square error (RMSE). Observed richness deviated from planned richness because not all species persisted throughout the experiment. We therefore used realized richness (i.e. the median of the observed richness values) as explanatory variable. Median richness was centered; a centered median richness of zero corresponds to a median richness of 5.5 (minimum median richness: 3; maximum median richness: 8). Lines display the fit of the linear mixed model; shaded areas denote the 95% confidence intervals. In (a), each point represents a forecasted taxon in a bottle. Taxon, bottle, and incubator were included as random intercepts in the model. Inserts at the top indicate the number of bottles for the respective richness level (yellow: constant light, blue: decreasing light). In (b), bottle and incubator were included as random intercepts in the model.
+**Figure 1**: Effects of species richness and light on forecast error. The two treatments had interactive effects on forecast error of taxa abundances (a) but no effect on the forecast error of community biomass (b). Forecasts were computed with Simplex Empirical Dynamic Modeling (EDM), and forecast error was calculated as root mean square error (RMSE). RMSE is standardized (unitless). Observed richness deviated from planned richness because not all species persisted throughout the experiment. We therefore used realized richness (i.e. the median of the observed richness values) as explanatory variable. Median richness was centered; a centered median richness of zero corresponds to a median richness of 5.5 (minimum median richness: 3; maximum median richness: 8). Lines display the fit of the linear mixed model; shaded areas denote the 95% confidence intervals. In (a), we forecasted 253 taxa time series (across all bottles); each point represents a forecasted taxon in a bottle. Taxon, bottle, and incubator were included as random intercepts in the model. Inserts at the top indicate the number of bottles for the respective richness level (yellow: constant light, blue: decreasing light). In (b), we forecasted community biomass in 30 bottles. Composition and incubator were included as random intercepts in the model.
 
 
 ## Table
@@ -264,7 +264,7 @@ spec.ab.tab <-
 #### ------------------------------------------------------------
 
 conf.int.2 <- confint(m.simplex.bio)
-conf.int.2 <- conf.int.2[4:7, ]
+conf.int.2 <- conf.int.2[4:6, ]
 conf.int.2 <- round(conf.int.2, 3)
 conf.int.2 <- apply(conf.int.2, 1, paste, collapse = " - ")
 
@@ -274,8 +274,7 @@ bio.rmse.tab <-
     Covariate = c(
       "Intercept",
       "Richness",
-      "Light (decreasing)",
-      "Richness:Light"
+      "Light (decreasing)"
     ),
     Estimate = fixef(m.simplex.bio),
     CI = conf.int.2,
@@ -320,14 +319,19 @@ main.tab %>%
       "\\textit{F}-value",
       "\\textit{p}-value"
     ),
-    caption = "Results of linear mixed models investigating the effects of 
-    species richness and light on forecast errors of taxa and community biomass. 
-    This table is an extended version of Table 1 in the main text and includes 
-    both the regression tables and the analysis of variance (Type III) tables of 
-    the models. The models included median centered richness, light treatment 
-    and their interaction as fixed effects. The random intercepts were included 
-    for the bottles, incubators and the targets (i.e. taxa). Forecast error is 
-    based on forecasts computed with Simplex EDM.",
+    caption = "Results of two linear mixed models investigating the effects of 
+    species richness and light on the forecast error of taxa abundances and 
+    community biomass, respectively. We forecasted 253 taxa time series (across 
+    all bottles) and community biomass in 30 bottles. In both models, median 
+    centered richness and light treatment were fixed effects. The first model 
+    (response: forecast error of taxa abundances) included taxon, bottle, and 
+    incubator as random intercepts. The second model (response: forecast error 
+    of community biomass) included composition and incubator as random 
+    intercepts. Forecast error is based on forecasts computed with Simplex 
+    Empirical Dynamic Modeling (EDM). In the second model, the interaction 
+    was not significant (p-value > 0.1) and was therefore removed from the 
+    model. The last four columns report the ANOVA results. P-values < 0.05 
+    in bold. See Supplement Table S6 for further details. ",
     align = c("llccccrr"),
     escape = F,
     label = "MainTab"

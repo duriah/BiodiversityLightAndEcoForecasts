@@ -22,6 +22,22 @@
   - Datasets (Each row is forecast result, specific to bottle, forecast target and forecast method):
     - `complete.forecasts.RData`: merged forecast results for the linearly detrended time series
     - `seg.complete.forecasts.RData`: merged forecast results for the time series detrended with segmented regression
+    
+- `4_BackTransformedRMSE`: contains the forecast results for when the time series forecasts were back-transformed before the RMSE was calculated.
+  - Datasets (each row is forecast result, specific to bottle, forecast target and forecast method):
+    - `complete.arima.forecasts.RDS`: ARIMA forecasts
+    - `complete.multiview.forecasts.RDS`: multiview EDM forecasts
+    - `complete.rf.forecasts.RDS`: RF forecasts
+    - `complete.rnn.forecasts.RDS`: RNN forecasts
+    - `complete.simplex.forecasts.RDS`: simplex EDM forecasts
+    
+- `5_InSampleProcessResults`: contains the forecast results for when the time series were processed (detrended and standardized) with only information from the historic data (i.e. the training data)
+  - Datasets (each row is forecast result, specific to bottle, forecast target and forecast method):
+    - `complete.arima.forecasts.RDS`: ARIMA forecasts
+    - `complete.multiview.forecasts.RDS`: multiview EDM forecasts
+    - `complete.rf.forecasts.RDS`: RF forecasts
+    - `complete.rnn.forecasts.RDS`: RNN forecasts
+    - `complete.simplex.forecasts.RDS`: simplex EDM forecasts    
 
 - Variables in the datasets:
     - `bottle`: name of the bottle sampled
@@ -34,6 +50,7 @@
     - `light_treatment`: light conditions applied (constant or decreasing)
     - `Target`: the forecasted target (i.e. taxa, community biomass or oxygen)
     - `RMSE`: The root mean square error
+    - `RMSE_BackT:` The root mean square error based on the back-transformed forecasts
     - `k`: the number of views used in the multiview EDM forecast
     - `E`: the embedding dimension used in simplex and multiview EDM
     - `actual_predictors`: the effectively used predictors in the multiview EDM forecasts

@@ -505,6 +505,12 @@ dd_list <- list(biomass = biomass,
                 water_chem = water_chem,
                 water_chem.int.detrend.complete = water_chem.int.detrend.complete)
 
+if(.Platform$OS.type=="windows"){
+  cr <- 1
+} else {
+  cr <- detectCores()-2
+}
+
 dd_list <- mclapply(dd_list, function(df){
   df <- df %>%
     dplyr::mutate(light = case_when(light_treatment =="constant" ~ 30,
@@ -529,7 +535,47 @@ dd_list <- mclapply(dd_list, function(df){
                                           day >= 93 & day < 198 ~ "decreasing",
                                           day >= 198 ~ "constant after decrease"))
   df
-}, mc.cores = detectCores()-2)
+}, mc.cores = cr)
+```
+
+```{r}
+# adding light schedule
+dd_list.int <- list(biomass.int = biomass.int, 
+                    densities.int = densities.int, 
+                    o2.int = o2.int, 
+                    water_chem.int = water_chem.int)
+
+if(.Platform$OS.type=="windows"){
+  cr <- 1
+} else {
+  cr <- detectCores()-2
+}
+
+dd_list.int <- mclapply(dd_list.int, function(df){
+  df <- df %>%
+    dplyr::mutate(light = case_when(light_treatment =="constant" ~ 30,
+                                    day >= 191 ~ 1,
+                                    184 <= day & day < 191 ~ 2,
+                                    177 <= day & day < 184 ~ 4,
+                                    170 <= day & day < 177 ~ 6,
+                                    163 <= day & day < 170 ~ 8,
+                                    156 <= day & day < 163 ~ 10,
+                                    149 <= day & day < 156 ~ 12,
+                                    142 <= day & day < 149 ~ 14,
+                                    135 <= day & day < 142 ~ 16,
+                                    128 <= day & day < 135 ~ 18,
+                                    121 <= day & day < 128 ~ 20,
+                                    114 <= day & day < 121 ~ 22,
+                                    107 <= day & day < 114 ~ 24,
+                                    100 <= day & day < 107 ~ 26,
+                                    93 <= day & day < 100 ~ 28,
+                                    day < 93 ~ 30),
+                  light_phase = case_when(light_treatment =="constant" ~ "constant",
+                                          day < 93 ~ "constant before decrease",
+                                          day >= 93 & day < 198 ~ "decreasing",
+                                          day >= 198 ~ "constant after decrease"))
+  df
+}, mc.cores = cr)
 ```
 
 
@@ -566,6 +612,11 @@ dd_list$densities.int.detrend.complete <- full_join(dd_list$densities.int.detren
 dd_list$biomass.int.detrend.complete <- full_join(dd_list$biomass.int.detrend.complete, day_spec_rich)
 dd_list$o2.int.detrend.complete <- full_join(dd_list$o2.int.detrend.complete, day_spec_rich)
 dd_list$water_chem.int.detrend.complete <- full_join(dd_list$water_chem.int.detrend.complete, day_spec_rich)
+
+dd_list.int$densities.int <- full_join(dd_list.int$densities.int, day_spec_rich)
+dd_list.int$biomass.int <- full_join(dd_list.int$biomass.int, day_spec_rich)
+dd_list.int$o2.int <- full_join(dd_list.int$o2.int, day_spec_rich)
+dd_list.int$water_chem.int <- full_join(dd_list.int$water_chem.int, day_spec_rich)
 ```
 
 
@@ -574,5 +625,6 @@ dd_list$water_chem.int.detrend.complete <- full_join(dd_list$water_chem.int.detr
 ```{r}
 saveRDS(object = dd_list, file = here("Data/2_TimeSeriesData/Transformed/DensityBiomassTimeSeries.RDS"))
 write_csv(o2_bothMeas, here("Data/2_TimeSeriesData/Transformed/OxygenBothSensors.csv"))
+saveRDS(object = dd_list.int, file = here("Data/2_TimeSeriesData/Transformed/DensityBiomassTimeSeriesIntermediate.RDS"))
 ```
 

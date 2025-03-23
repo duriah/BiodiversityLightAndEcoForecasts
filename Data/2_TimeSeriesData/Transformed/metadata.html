@@ -377,7 +377,7 @@ a sample (bottle and sampling day specific).</li>
 <code>water_chem.int.detrend.complete</code> respectively contain the
 untransformed and the transformed time series of the water chemistry
 (DC: Dissolved Carbon; DN: Dissolved Nitrogen; DOC: Dissolved Organic
-Carbon; IC: Inorganic Carbon) Each row is a sample (bottle, water
+Carbon; IC: Inorganic Carbon). Each row is a sample (bottle, water
 chemistry, and sampling day specific).</li>
 <li><strong>Note</strong>: <code>int.detrend.complete</code> indicates
 that it contains the respective transformed time series (interpolated,
@@ -508,6 +508,93 @@ concentration of the respective sample</li>
 <em>detrended but not standardized</em> water chemistry type
 concentration of the respective sample, using segmented regression for
 the detrending.</li>
+</ul></li>
+</ul></li>
+<li><code>DensityBiomassTimeSeriesIntermediate.RDS</code>: very similar
+to <code>DensityBiomassTimeSeries.RDS</code> but only for the
+interpolated (and otherwise not processed) data. It is a RDS file
+containing an R list which itself contains several data sets:
+<ul>
+<li><code>biomass.int</code>: the interpolated time series of the total
+(i.e. community) biomass. Each row is a sample (bottle and sampling day
+specific).</li>
+<li><code>densities.int</code>: the interpolated time series of the taxa
+densities and biomasses Each row is a sample (bottle, species, and
+sampling day specific).</li>
+<li><code>o2.int</code>: the interpolated oxygen time series (oxygen
+concentration average over the two sensors). Each row is a sample
+(bottle and sampling day specific).</li>
+<li><code>water_chem.int</code>: the interpolated time series of the
+water chemistry (DC: Dissolved Carbon; DN: Dissolved Nitrogen; DOC:
+Dissolved Organic Carbon; IC: Inorganic Carbon). Each row is a sample
+(bottle, water chemistry, and sampling day specific).</li>
+<li><strong>Units</strong>:
+<ul>
+<li><strong>Density</strong>: individuals per ml</li>
+<li><strong>Biomass</strong>: grams per ml</li>
+<li><strong>Carbon</strong> and Nitrogen: mg per L</li>
+<li><strong>Oxygen</strong>: percent concentration</li>
+</ul></li>
+<li>Variables in the datasets:
+<ul>
+<li><code>timestamp</code>: timestamp of sampling day, format:
+yyyymmdd</li>
+<li><code>day</code>: days since start of experiment (starts at 0)</li>
+<li><code>bottle</code>: name of the bottle sampled</li>
+<li><code>light_treatment</code>: light conditions applied (constant or
+decreasing)</li>
+<li><code>richness</code>: the planned richness (number of species)</li>
+<li><code>composition</code>: the name of the community composition</li>
+<li><code>incubator</code>: the name of the incubator in which the
+bottle was stored</li>
+<li><code>biomass</code>: the interpolated biomass of the respective
+sample.</li>
+<li><code>realized_richness</code>: the minimally observed species
+richness over the whole experiment per bottle (number of species)</li>
+<li><code>light</code>: light intensity (in percent)</li>
+<li><code>light_phase</code>: variable indicating in which phase of the
+light change the sample was taken. Level: <em>constant</em> (i.e. a
+bottle that remained at 30 throughout the experiment), <em>constant
+before decrease</em>, <em>decreasing</em> and <em>con stant after
+decrease</em></li>
+<li><code>day_richness</code>: the number of species present in the
+given sample on the given sampling day. Species were counted if they
+were present at a density of at least 10 (videos) and 100 (flowcam)
+individuals per ml.</li>
+<li><code>mean_richness</code>: the mean species richness over the whole
+experiment per bottle (mean number of species)</li>
+<li><code>median_richness</code>: the median species richness over the
+whole experiment per bottle (median number of species)</li>
+<li><code>species</code>: the taxa which was sampled. Levels:
+<em>Algae</em>, <em>Bacteria</em>, <em>Chlamydomonas clumps</em>,
+<em>Chlamydomonas reinhardtii</em>, <em>Coleps sp.</em>, <em>Cosmarium
+botrytis</em>, <em>Debris</em>, <em>Desmodesmus armatus</em>,
+<em>Desmodesmus clumps</em>, <em>Didinium nasu tum</em>, <em>Digested
+algae</em>, <em>Dividing Chlamydomonas</em>, <em>Paramecium
+bursaria</em>, <em>Paramecium caudatum</em>, <em>Small cells</em>,
+<em>Small unidentified</em>, <em>Staurastrum gracile</em>, <em>Colpidium
+vacuoles</em>, <em>Monoraphidium obtusum</em>, <em>Staurastrum poly
+trichum</em>, <em>Stylonychia sp.</em>, <em>Colpidium striatum</em>,
+<em>Dexiostoma campylum</em>, <em>Euplotes daidaleos</em>,
+<em>Loxocephalus sp.</em><br />
+</li>
+<li><code>method</code>: the method with which the data was collected.
+Levels: <em>Flowcytometer</em>, <em>FlowCam</em>, <em>Video</em>,
+<em>Manual count</em><br />
+</li>
+<li><code>density</code>: the interpolated density of the respective
+sample.</li>
+<li><code>ForecastTarget</code>: boolean variable indicating whether a
+specific taxa in a specific bottle was forecasted or not</li>
+<li><code>percent_o2</code>: the interpolated oxygen concentration of
+the respective sample.</li>
+<li><code>type</code>: the water chemistry measured. Levels:
+<em>IC</em>, <em>TC</em> (i.e. DC), <em>TN</em> (i.e. DN), <em>TOC</em>
+(i.e. DOC).</li>
+<li><code>concentration</code>: the interpolated water chemistry type
+concentration of the respective sample.</li>
+<li><code>cv</code>: nonsensical (leftover) variable, ignore.</li>
+<li><code>n</code>: nonsensical (leftover) variable, ignore.</li>
 </ul></li>
 </ul></li>
 <li><code>OxygenBothSensors</code>: interpolated oxygen time series for

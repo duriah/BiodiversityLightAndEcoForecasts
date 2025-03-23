@@ -4,7 +4,7 @@
     - `biomass` and `biomass.int.detrend.complete` respectively contain the untransformed and the transformed time series of the total (i.e. community) biomass. Each row is a sample (bottle and sampling day specific).
     - `densities` and `densities.int.detrend.complete` respectively contain the untransformed and the transformed time series of the taxa densities and biomasses Each row is a sample  (bottle, species, and sampling day specific).
     - `o2` and `o2.int.detrend.complete` respectively contain the untransformed and the transformed oxygen time series (oxygen concentration average over the two sensors). Each row is a sample  (bottle and sampling day specific).
-    - `water_chem` and `water_chem.int.detrend.complete` respectively contain the untransformed and the transformed time series of the water chemistry (DC: Dissolved Carbon; DN: Dissolved Nitrogen; DOC: Dissolved Organic Carbon; IC: Inorganic Carbon) Each row is a sample  (bottle, water chemistry, and sampling day specific).
+    - `water_chem` and `water_chem.int.detrend.complete` respectively contain the untransformed and the transformed time series of the water chemistry (DC: Dissolved Carbon; DN: Dissolved Nitrogen; DOC: Dissolved Organic Carbon; IC: Inorganic Carbon). Each row is a sample  (bottle, water chemistry, and sampling day specific).
     - **Note**: `int.detrend.complete` indicates that it contains the respective transformed time series (interpolated, detrended and standardized over the whole duration of the time series)
     - **Units**: the transformed time are standardized and therefore unitless. Regarding the untransformed time series: 
       - **Density**: individuals per ml
@@ -53,6 +53,42 @@
     - `concentration.detrended.unstandardized`: estimated *detrended but not standardized* water chemistry type concentration of the respective sample 
     - `concentration.seg.detrended.unstandardized`: estimated *detrended but not standardized* water chemistry type concentration of the respective sample, using segmented regression for the detrending.
   
+ - `DensityBiomassTimeSeriesIntermediate.RDS`: very similar to `DensityBiomassTimeSeries.RDS` but only for the interpolated (and otherwise not processed) data. It is a RDS file containing an R list which itself contains several data sets:
+    - `biomass.int`: the interpolated time series of the total (i.e. community) biomass. Each row is a sample (bottle and sampling day specific).
+    - `densities.int`: the interpolated time series of the taxa densities and biomasses Each row is a sample  (bottle, species, and sampling day specific).
+    - `o2.int`: the interpolated oxygen time series (oxygen concentration average over the two sensors). Each row is a sample  (bottle and sampling day specific).
+    - `water_chem.int`: the interpolated time series of the water chemistry (DC: Dissolved Carbon; DN: Dissolved Nitrogen; DOC: Dissolved Organic Carbon; IC: Inorganic Carbon). Each row is a sample  (bottle, water chemistry, and sampling day specific).
+    - **Units**: 
+      - **Density**: individuals per ml
+      - **Biomass**: grams per ml
+      - **Carbon** and Nitrogen: mg per L
+      - **Oxygen**: percent concentration
+
+    - Variables in the datasets:
+      - `timestamp`: timestamp of sampling day, format: yyyymmdd
+      - `day`: days since start of experiment (starts at 0)
+      - `bottle`: name of the bottle sampled
+      - `light_treatment`: light conditions applied (constant or decreasing)
+      - `richness`: the planned richness (number of species)
+      - `composition`: the name of the community composition
+      - `incubator`: the name of the incubator in which the bottle was stored
+      - `biomass`: the interpolated biomass of the respective sample. 
+      - `realized_richness`: the minimally observed species richness over the whole experiment per bottle (number of species)
+      - `light`: light intensity (in percent)
+      - `light_phase`: variable indicating in which phase of the light change the sample was taken. Level: *constant* (i.e. a bottle that remained at 30 throughout the experiment), *constant before decrease*, *decreasing* and *con  stant after decrease*
+      - `day_richness`: the number of species present in the given sample on the given sampling day. Species were counted if they were present at a density of at least 10 (videos) and 100 (flowcam) individuals per ml.
+      - `mean_richness`: the mean species richness over the whole experiment per bottle (mean number of species) 
+      - `median_richness`: the median species richness over the whole experiment per bottle (median number of species) 
+      - `species`: the taxa which was sampled. Levels: *Algae*, *Bacteria*, *Chlamydomonas clumps*, *Chlamydomonas reinhardtii*, *Coleps sp.*, *Cosmarium botrytis*, *Debris*, *Desmodesmus armatus*, *Desmodesmus clumps*, *Didinium nasu  tum*, *Digested algae*, *Dividing Chlamydomonas*, *Paramecium bursaria*, *Paramecium caudatum*, *Small cells*, *Small unidentified*, *Staurastrum gracile*, *Colpidium vacuoles*, *Monoraphidium obtusum*, *Staurastrum poly  trichum*, *Stylonychia sp.*, *Colpidium striatum*, *Dexiostoma campylum*, *Euplotes daidaleos*, *Loxocephalus sp.*   
+      - `method`: the method with which the data was collected. Levels: *Flowcytometer*, *FlowCam*, *Video*, *Manual count*                      
+      - `density`: the interpolated density of the respective sample. 
+      - `ForecastTarget`: boolean variable indicating whether a specific taxa in a specific bottle was forecasted or not
+      - `percent_o2`: the interpolated oxygen concentration of the respective sample. 
+      - `type`: the water chemistry measured. Levels: *IC*,  *TC* (i.e. DC),  *TN* (i.e. DN),  *TOC* (i.e. DOC).
+      - `concentration`: the interpolated water chemistry type concentration of the respective sample. 
+      - `cv`: nonsensical (leftover) variable, ignore.
+      - `n`: nonsensical (leftover) variable, ignore.
+
   
 - `OxygenBothSensors`: interpolated oxygen time series for both sensors used (for convenience for later plotting). Oxygen concentration is given in percent. Each row is a sample (bottle, sensors and sampling day specific).
   - Variables:

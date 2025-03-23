@@ -77,7 +77,7 @@ conf_interval <- function(model, nd, response, renameResponse, cmult=1.96){
 ## acf vs exp
 m.acf.exp <-
   lmer(
-    acf_lag5 ~ median_richness_center * light_treatment + 
+    acf_lag5 ~ median_richness_center + light_treatment + 
       (1 |Target) + (1 | bottle) + (1 | incubator),
     complete.forecasts.taxa
   )
@@ -85,7 +85,7 @@ m.acf.exp <-
 ## cv vs exp
 m.cv.exp <-
   lmer(
-    cv.res.log10 ~ median_richness_center * light_treatment + 
+    cv.res.log10 ~ median_richness_center + light_treatment + 
       (1 | Target) + (1 | bottle) + (1 | incubator),
     complete.forecasts.taxa
   )
@@ -93,7 +93,7 @@ m.cv.exp <-
 ### pe vs rmse
 m.pe.exp <-
   lmer(
-    pe5 ~ median_richness_center * light_treatment + 
+    pe5 ~ median_richness_center + light_treatment + 
       (1 | Target) + (1 | bottle) + (1 | incubator),
     complete.forecasts.taxa
   )
@@ -101,7 +101,7 @@ m.pe.exp <-
 ## acf vs RMSE
 m.acf.rmse <-
   lmer(
-    RMSE ~ acf_lag5 * light_treatment + 
+    RMSE ~ acf_lag5 + light_treatment + 
       (1 | Target) + (1 | bottle) + (1 | incubator),
     complete.forecasts.taxa
   )
@@ -109,7 +109,7 @@ m.acf.rmse <-
 ## CV vs RMSE
 m.cv.rmse <-
   lmer(
-    RMSE ~ cv.res.log10 * light_treatment + 
+    RMSE ~ cv.res.log10 + light_treatment + 
       (1 |Target) + (1 | bottle) + (1 | incubator),
     complete.forecasts.taxa
   )
@@ -117,7 +117,7 @@ m.cv.rmse <-
 ### pe vs rmse
 m.pe.rmse <-
   lmer(
-    RMSE ~ pe5 * light_treatment + 
+    RMSE ~ pe5 + light_treatment + 
       (1 | Target) + (1 | bottle) + (1 | incubator),
     complete.forecasts.taxa
   )
@@ -356,7 +356,7 @@ fig2acf.rmse + fig2cv.rmse + fig2pe.rmse +
 ```
 
 
-**Figure 2**: Relationship of time series metrics with forecast error (a-c), and with experimental treatments (d-f). Time series metrics are (a, d) autocorrelation at lag 5, (b, e) coefficient of variation as a measure of temporal variability, and (c, f) permutation entropy as a measure of time series complexity. Lines display the fit of the corresponding linear mixed model, shaded areas denote the 95% confidence intervals. Taxon, bottle, and incubator were included as random effects in the model. Forecast error is based on forecasts computed with Simplex EDM.
+**Figure 2**: Relationship of time series metrics with forecast error (a-c), and with experimental treatments (d-f). Time series metrics are (a, d) autocorrelation at lag 5, (b, e) coefficient of variation as a measure of temporal variability, and (c, f) permutation entropy as a measure of time series complexity. All variables are unitless. Time series metrics were calculated for 253 taxa time series (across all bottles). Lines display the fit of the corresponding linear mixed model, shaded areas denote the 95% confidence intervals. Taxon, bottle, and incubator were included as random effects in the model. Forecast error is based on forecasts computed with Simplex EDM. Note that in (b) and (e) the coefficient of variation was log10-transformed so that linear model assumptions were met.
 
 # Versions of R and of the R-packages used
 
