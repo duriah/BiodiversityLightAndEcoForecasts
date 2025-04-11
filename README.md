@@ -1,5 +1,5 @@
 # BiodiversityLightAndEcoForecasts
-This is the repository to the article "Biodiversity increases the forecastability of species abundances in changing environments".
+This is the repository to the article "Mixed evidence for species diversity affecting ecological forecasts in constant versus declining light".
 
 
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.12774924.svg)](https://doi.org/10.5281/zenodo.12774924)
