@@ -1,5 +1,5 @@
 # BiodiversityLightAndEcoForecasts
-This is the repository to the article "Mixed evidence for species diversity affecting ecological forecasts in constant versus declining light".
+This is the repository to the article "Mixed Evidence for Species Diversity Affecting Ecological Forecasts in Constant Versus Declining Light" (GCB 2025).
 
 
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.15106928.svg)](https://doi.org/10.5281/zenodo.15106928)
